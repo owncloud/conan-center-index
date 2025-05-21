@@ -1,0 +1,40 @@
+name: Build with conan
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Conan
+        uses: conan-io/setup-conan@v1
+
+      - name: Setup
+        run: |
+          conan remote remove conancenter
+          conan remote add oc https://artifactory.owncloud-demo.com/artifactory/api/conan/conan-local
+          conan remote login oc admin -p $(CONAN_PASSWORD)
+          conan profile show
+
+      - name: Build
+        run: |
+          conan create recipes/openssl/3.x.x/ -r oc -b missing --version=3.4.1
+
+      - name: Upload
+        #if: ${{ github.ref == 'refs/heads/master' }}
+        run: |
+          conan upload -r oc openssl
