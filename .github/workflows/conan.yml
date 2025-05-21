@@ -37,7 +37,6 @@ jobs:
       - name: Build
         run: |
           conan create recipes/cmake/binary/ -r oc -b missing --version=3.30.0
-          conan create recipes/cmake/all/ -r oc -b missing --version=6.2.0
           conan create recipes/extra-cmake-modules/all/ -r oc -b missing --version=6.2.0
           conan create recipes/zlib/all/ -r oc -b missing --version=1.3.1
           conan create recipes/openssl/3.x.x/ -r oc -b missing --version=3.4.1
