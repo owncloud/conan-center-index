@@ -24,6 +24,9 @@ jobs:
         uses: conan-io/setup-conan@v1
 
       - name: Setup
+        env:
+          CONAN_USER: ${{ secrets.CONAN_USER }}
+          CONAN_PASSWORD: ${{ secrets.CONAN_PASSWORD }}
         run: |
           conan remote remove conancenter
           conan remote add oc https://artifactory.owncloud-demo.com/artifactory/api/conan/conan-local
