@@ -27,7 +27,8 @@ jobs:
         run: |
           conan remote remove conancenter
           conan remote add oc https://artifactory.owncloud-demo.com/artifactory/api/conan/conan-local
-          conan remote login oc admin -p $CONAN_PASSWORD
+          echo $CONAN_USER
+          conan remote login oc $CONAN_USER -p $CONAN_PASSWORD
           conan profile show
 
       - name: Build
@@ -38,5 +39,4 @@ jobs:
       - name: Upload
         #if: ${{ github.ref == 'refs/heads/master' }}
         run: |
-          conan upload -r oc openssl
-          conan upload -r oc zlib
+          conan upload -r oc *
