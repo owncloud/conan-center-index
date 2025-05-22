@@ -21,13 +21,15 @@ class GlobalDependencyMirror(ConanFile):
         self.requires("zlib/1.3.1")
         self.requires("sqlite3/3.49.1")
         self.requires("openssl/3.4.1")
-        #self.requires("qt/6.7.3")
         self.requires("nlohmann_json/3.11.3")
         #self.requires("kdsingleapplication/1.1.0")
         #self.requires("qtkeychain/0.15.0")
         #self.requires("libregraphapi/1.0.4")
         #if self.settings.os == "Macos":
             #self.requires("sparkle/2.7.0")
+        # let's build on Win and Mac first
+        if self.settings.os != "Linux":
+            self.requires("qt/6.7.3")
 
     def build(self):
         pass
