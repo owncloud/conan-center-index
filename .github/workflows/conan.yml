@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    name: Build on ${{ matrix.os }}
+    name: ${{ matrix.build_type }} Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -33,10 +33,18 @@ jobs:
           conan remote list
           conan profile show
 
+      - name: Disk Space Before
+        run: |
+          df -h
+
       - name: Build
         run: |
           conan remove "*" -c
           conan install . -s build_type=${{ matrix.build_type }} --build=missing
+
+      - name: Disk Space After
+        run: |
+          df -h
 
       - name: Upload
         if: ${{ github.ref == 'refs/heads/master' }}
