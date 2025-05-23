@@ -26,6 +26,7 @@ jobs:
       # following https://docs.conan.io/2/devops/devops_local_recipes_index.html#building-binaries-from-a-private-conan-center-index-fork
       - name: Setup
         run: |
+          conan config install ./.config/global.conf
           conan remote remove conancenter
           conan remote add oc https://artifactory.owncloud-demo.com/artifactory/api/conan/conan-local
           conan remote login oc ${{ secrets.CONAN_USER }} -p ${{ secrets.CONAN_PASSWORD }}
@@ -40,7 +41,7 @@ jobs:
       - name: Build
         run: |
           conan remove "*" -c
-          conan install . -s build_type=${{ matrix.build_type }} --build=missing
+          conan install . -s build_type=${{ matrix.build_type }} --build=missing --settings "compiler.cppstd=17"
 
       - name: Disk Space After
         run: |

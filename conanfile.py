@@ -6,6 +6,7 @@ class GlobalDependencyMirror(ConanFile):
     default_options = {
         "shared": 'True',
         "*:fPIC": True,
+        "*:with_fontconfig": False,
         'qt/*:shared': 'True',
         'qt/*:qtdeclarative': 'True',
         'qt/*:qtquickcontrols2': 'True',
@@ -21,7 +22,7 @@ class GlobalDependencyMirror(ConanFile):
         self.requires("zlib/1.3.1")
         self.requires("sqlite3/3.49.1")
         self.requires("openssl/3.4.1")
-        #self.requires("qt/6.7.3")
+        self.requires("qt/6.7.3")
         self.requires("nlohmann_json/3.11.3")
         #self.requires("kdsingleapplication/1.1.0")
         #self.requires("qtkeychain/0.15.0")
