@@ -6,6 +6,7 @@ class GlobalDependencyMirror(ConanFile):
     default_options = {
         "shared": 'True',
         "*:fPIC": True,
+        "*:with_fontconfig": False,
         'qt/*:shared': 'True',
         'qt/*:qtdeclarative': 'True',
         'qt/*:qtquickcontrols2': 'True',
