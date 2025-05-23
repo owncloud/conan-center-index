@@ -29,5 +29,8 @@ class GlobalDependencyMirror(ConanFile):
         #if self.settings.os == "Macos":
             #self.requires("sparkle/2.7.0")
 
+    def build_requirements(self):
+        self.tool_requires("cmake/3.30.0")
+
     def build(self):
         pass
