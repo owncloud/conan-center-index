@@ -10,6 +10,9 @@ graph_info.json
 build/
 .conanrunner/
 .conanrc
+conanbuild*
+conanrun*
+deactivate*
 
 # CMake
 CMakeUserPresets.json
