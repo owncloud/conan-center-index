@@ -25,7 +25,7 @@ class GlobalDependencyMirror(ConanFile):
         self.requires("qt/6.7.3")
         self.requires("kdsingleapplication/1.2.0")
         self.requires("qtkeychain/0.15.0")
-        #self.requires("libregraphapi/1.0.4")
+        self.requires("libregraphapi/1.0.4")
         if self.settings.os == "Macos":
             self.requires("sparkle/2.7.0")
 
