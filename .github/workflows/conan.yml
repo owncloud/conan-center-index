@@ -10,12 +10,32 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.build_type }} Build on ${{ matrix.os }}
+    name: Building ${{ matrix.build_type }} ${{ matrix.profile }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        build_type: [Release, Debug]
+        include:
+          # Release build type
+          - os: ubuntu-latest
+            profile: ubuntu-latest-x86_64
+            build_type: Release
+          - os: macos-latest
+            profile: macos-latest-armv8
+            build_type: Release
+          - os: windows-latest
+            profile: windows-latest-x86_64
+            build_type: Release
+          # Debug build type
+          - os: ubuntu-latest
+            profile: ubuntu-latest-x86_64
+            build_type: Debug
+          - os: macos-latest
+            profile: macos-latest-armv8
+            build_type: Debug
+          - os: windows-latest
+            profile: windows-latest-x86_64
+            build_type: Debug
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -53,7 +73,7 @@ jobs:
       - name: Build
         run: |
           conan remove "*" -c
-          conan install . -s build_type=${{ matrix.build_type }} --build=missing --settings "compiler.cppstd=17"
+          conan install . --profile=.github/profiles/${{ matrix.profile }}.conanprofile -s build_type=${{ matrix.build_type }} --build=missing
 
       - name: Disk Space After
         run: |
