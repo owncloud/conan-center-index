@@ -27,10 +27,11 @@ jobs:
       - name: Setup
         run: |
           conan config install ./.config/global.conf
+          # local has to be before artifactory to ensure that the local recipes are used for buiding
+          conan remote add local .
           conan remote remove conancenter
           conan remote add oc https://artifactory.owncloud-demo.com/artifactory/api/conan/conan-local
           conan remote login oc ${{ secrets.CONAN_USER }} -p ${{ secrets.CONAN_PASSWORD }}
-          conan remote add local .
           conan remote list
           conan profile show
 
