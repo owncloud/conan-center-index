@@ -26,8 +26,8 @@ class GlobalDependencyMirror(ConanFile):
         #self.requires("kdsingleapplication/1.1.0")
         #self.requires("qtkeychain/0.15.0")
         #self.requires("libregraphapi/1.0.4")
-        #if self.settings.os == "Macos":
-            #self.requires("sparkle/2.7.0")
+        if self.settings.os == "Macos":
+            self.requires("sparkle/2.7.0")
         # let's build on Win and Mac first
 
     def build_requirements(self):
