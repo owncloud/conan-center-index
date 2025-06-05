@@ -71,6 +71,10 @@ jobs:
           echo "After cleanup:"
           df -h
 
+      - name: Conan Graph
+        run: |
+          conan graph info conanfile.py --profile=.github/profiles/${{ matrix.profile }}.conanprofile -s build_type=${{ matrix.build_type }}
+
       - name: Build
         run: |
           conan remove "*" -c
