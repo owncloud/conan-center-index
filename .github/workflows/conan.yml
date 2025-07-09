@@ -26,16 +26,6 @@ jobs:
           - os: windows-latest
             profile: windows-latest-x86_64
             build_type: Release
-          # Debug build type
-          - os: ubuntu-latest
-            profile: ubuntu-latest-x86_64
-            build_type: Debug
-          - os: macos-latest
-            profile: macos-latest-armv8
-            build_type: Debug
-          - os: windows-latest
-            profile: windows-latest-x86_64
-            build_type: Debug
 
     steps:
       - name: Checkout repository
