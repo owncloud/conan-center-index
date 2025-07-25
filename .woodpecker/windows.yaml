@@ -1,0 +1,53 @@
+matrix:
+  include:
+    # Release build type
+    - CI_IMAGE: registry.owncloud.com/client/windows-base:msvc2022-conan
+      CONAN_PROFILE: windows-latest-x86_64
+      BUILD_TYPE: RelWithDebInfo
+      CI_PLATFORM: windows/amd64
+
+labels:
+    platform: ${CI_PLATFORM}
+
+clone:
+  - name: clone
+    image: woodpeckerci/plugin-git:latest
+
+steps:
+  - name: Disk Space Before
+    image: mcr.microsoft.com/windows/servercore:ltsc2022
+    commands:
+      - powershell -Command "Get-PSDrive"
+
+  - name: Build
+    image: ${CI_IMAGE}
+    pull: true
+    commands:
+      - py --version
+      - py -m pip list
+      # this has to be powershell syntax
+      - conan config install ./.config/global.conf
+      # local has to be before artifactory to ensure that the local recipes are used for buiding
+      - conan remote add local .
+      - conan remote remove conancenter
+      - conan remote add oc https://artifactory.owncloud.rocks/artifactory/api/conan/conan-local
+      - conan remote auth oc
+      - conan remote list
+      - conan profile show
+      - conan graph info conanfile.py --profile=.github/profiles/${CONAN_PROFILE}.conanprofile -s build_type=${BUILD_TYPE}
+      - conan remove "*" -c
+      - conan install . --profile=.github/profiles/${CONAN_PROFILE}.conanprofile -s build_type=${BUILD_TYPE} --build=missing
+      # upload
+      - Write-Host "uploading..."; if ($env:CI_PIPELINE_EVENT -eq "push" -and $env:CI_COMMIT_BRANCH -eq $env:CI_REPO_DEFAULT_BRANCH) { conan upload -r oc "*" -c } else { Write-Host "no upload" }
+
+    environment:
+      CONAN_LOGIN_USERNAME:
+        from_secret: conan_user
+      CONAN_PASSWORD:
+        from_secret: conan_password
+
+when:
+  - event: pull_request
+    branch: master
+  - event: push
+    branch: master
