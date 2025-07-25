@@ -1,25 +1,29 @@
 matrix:
   include:
-    - CI_IMAGE: ghcr.io/catthehacker/ubuntu:act-latest
-      CONAN_PROFILE: ubuntu-latest-x86_64
+    # Release build type
+    - CI_IMAGE: registry.owncloud.com/client/windows-base:msvc2022
+      CONAN_PROFILE: windows-latest-x86_64
       BUILD_TYPE: RelWithDebInfo
-      CI_PLATFORM: linux/amd64
+      CI_PLATFORM: windows/amd64
 
 labels:
     platform: ${CI_PLATFORM}
 
+clone:
+  - name: clone
+    image: woodpeckerci/plugin-git:latest
+
 steps:
   - name: Disk Space Before
-    image: debian:stable-slim
+    image: mcr.microsoft.com/windows/servercore:ltsc2022
     commands:
-      - df -h
+      - powershell -Command "Get-PSDrive"
 
   - name: Build
     image: ${CI_IMAGE}
+    pull: true
     commands:
-      - apt update
-      - apt install -y cmake
-      - pip install conan
+      # this has to be powershell syntax
       - conan config install ./.config/global.conf
       - conan profile detect
       # local has to be before artifactory to ensure that the local recipes are used for buiding
@@ -32,6 +36,9 @@ steps:
       - conan graph info conanfile.py --profile=.github/profiles/${CONAN_PROFILE}.conanprofile -s build_type=${BUILD_TYPE}
       - conan remove "*" -c
       - conan install . --profile=.github/profiles/${CONAN_PROFILE}.conanprofile -s build_type=${BUILD_TYPE} --build=missing
+      # upload when on master
+      # - conan upload -r oc "*" -c
+      # blaa
 
     environment:
       CONAN_LOGIN_USERNAME:
@@ -42,9 +49,6 @@ steps:
   - name: Conan Upload
     image: ${CI_IMAGE}
     commands:
-      - apt update
-      - apt install -y cmake
-      - pip install conan
       - conan config install ./.config/global.conf
       - conan profile detect
       # local has to be before artifactory to ensure that the local recipes are used for buiding
@@ -65,4 +69,3 @@ when:
     branch: master
   - event: push
     branch: master
-
