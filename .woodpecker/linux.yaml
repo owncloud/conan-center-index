@@ -33,7 +33,7 @@ steps:
       - conan remove "*" -c
       - conan install . --profile=.github/profiles/${CONAN_PROFILE}.conanprofile -s build_type=${BUILD_TYPE} --build=missing
       # upload
-      - echo upoading... ;[ ${CI_PIPELINE_EVENT} = "push" && ${CI_COMMIT_BRANCH} == ${CI_REPO_DEFAULT_BRANCH} ] && conan upload -r oc "*" -c || echo "no upload"
+      - echo upoading... ;[ "${CI_PIPELINE_EVENT}" = "push" -a ${CI_COMMIT_BRANCH} = ${CI_REPO_DEFAULT_BRANCH} ] && conan upload -r oc "*" -c || echo "no upload"
 
     environment:
       CONAN_LOGIN_USERNAME:
