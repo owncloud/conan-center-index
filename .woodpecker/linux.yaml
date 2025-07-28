@@ -41,6 +41,8 @@ steps:
 
   - name: Conan Upload
     image: ${CI_IMAGE}
+    depends_on:
+      - Build
     commands:
       - apt update
       - apt install -y cmake
