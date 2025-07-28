@@ -32,35 +32,14 @@ steps:
       - conan graph info conanfile.py --profile=.github/profiles/${CONAN_PROFILE}.conanprofile -s build_type=${BUILD_TYPE}
       - conan remove "*" -c
       - conan install . --profile=.github/profiles/${CONAN_PROFILE}.conanprofile -s build_type=${BUILD_TYPE} --build=missing
+      # upload
+      - echo upoading... ;[ ${CI_PIPELINE_EVENT} = "push" && ${CI_COMMIT_BRANCH} == ${CI_REPO_DEFAULT_BRANCH} ] && conan upload -r oc "*" -c || echo "no upload"
 
     environment:
       CONAN_LOGIN_USERNAME:
         from_secret: conan_user
       CONAN_PASSWORD:
         from_secret: conan_password
-
-  - name: Conan Upload
-    image: ${CI_IMAGE}
-    depends_on:
-      - Build
-    commands:
-      - apt update
-      - apt install -y cmake
-      - pip install conan
-      - conan config install ./.config/global.conf
-      - conan profile detect
-      # local has to be before artifactory to ensure that the local recipes are used for buiding
-      - conan remote add local .
-      - conan remote remove conancenter
-      - conan remote add oc https://artifactory.owncloud.rocks/artifactory/api/conan/conan-local
-      - conan remote auth oc
-      - conan remote list
-      - conan profile show
-      # upload
-      - conan upload -r oc "*" -c
-    when:
-    - event: push
-      branch: master
 
 when:
   - event: pull_request
