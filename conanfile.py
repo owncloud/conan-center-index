@@ -17,7 +17,7 @@ class GlobalDependencyMirror(ConanFile):
     }
 
     def requirements(self):
-        self.requires("extra-cmake-modules/6.2.0")
+        self.requires("extra-cmake-modules/6.8.0")
         self.requires("zlib/1.3.1")
         self.requires("sqlite3/3.49.1")
         self.requires("openssl/3.4.1")
