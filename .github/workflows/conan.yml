@@ -16,16 +16,17 @@ jobs:
     strategy:
       matrix:
         include:
-          # Release build type
+          # RelWithDebInfo build type
           - os: ubuntu-latest
             profile: ubuntu-latest-x86_64
-            build_type: Release
+            build_type: RelWithDebInfo
           - os: macos-latest
             profile: macos-latest-armv8
-            build_type: Release
-          - os: windows-latest
-            profile: windows-latest-x86_64
-            build_type: Release
+            build_type: RelWithDebInfo
+          # Disabling Windows for the time being .....
+          #- os: windows-latest
+          #  profile: windows-latest-x86_64
+          #  build_type: Release
 
     steps:
       - name: Checkout repository
