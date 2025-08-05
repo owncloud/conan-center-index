@@ -10,6 +10,8 @@ class GlobalDependencyMirror(ConanFile):
         'qt/*:qtdeclarative': 'True',
         'qt/*:qtquickcontrols2': 'True',
         'qt/*:qtshadertools': 'True',
+        'qt/*:qtsvg': True,
+        'qt/*:qtimageformats': True,
         'qt/*:qttools': 'True',
         'qt/*:gui': 'True',
         'qt/*:widgets': 'True',
