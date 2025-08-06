@@ -4,18 +4,19 @@ class GlobalDependencyMirror(ConanFile):
     settings = "os", "compiler", "arch", "build_type"
     options = {"shared": [True, False]}
     default_options = {
-        "shared": 'True',
+        "shared": True,
         "*:fPIC": True,
-        'qt/*:shared': 'True',
-        'qt/*:qtdeclarative': 'True',
-        'qt/*:qtquickcontrols2': 'True',
-        'qt/*:qtshadertools': 'True',
+        'qt/*:shared': True,
+        'qt/*:qtdeclarative': True,
+        'qt/*:qtquickcontrols2': True,
+        'qt/*:qtshadertools': True,
         'qt/*:qtsvg': True,
         'qt/*:qtimageformats': True,
-        'qt/*:qttools': 'True',
-        'qt/*:gui': 'True',
-        'qt/*:widgets': 'True',
-        'qt/*:with_dbus': 'True',
+        'qt/*:qttools': True,
+        'qt/*:qttranslations': True,
+        'qt/*:gui': True,
+        'qt/*:widgets': True,
+        'qt/*:with_dbus': True,
     }
 
     def requirements(self):
