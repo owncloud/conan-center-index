@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    name: Building ${{ matrix.build_type }} ${{ matrix.profile }}
+    name: Building ${{ matrix.build_type }} ${{ matrix.profile || matrix.profile_host }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -67,13 +67,13 @@ jobs:
           df -h
 
       - name: Build
-        if: contains(matrix, 'profile')
+        if: matrix.profile != null
         run: |
           conan remove "*" -c
           conan install . --profile=.github/profiles/${{ matrix.profile }}.conanprofile -s build_type=${{ matrix.build_type }} --build=missing
 
       - name: Cross-Build
-        if: contains(matrix, 'profile_host')
+        if: matrix.profile_build != null
         run: |
           conan remove "*" -c
           conan install . --profile:host=.github/profiles/${{ matrix.profile_host }}.conanprofile --profile:build=.github/profiles/${{ matrix.profile_build }}.conanprofile -s build_type=${{ matrix.build_type }} --build=missing
