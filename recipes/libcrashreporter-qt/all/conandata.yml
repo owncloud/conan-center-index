@@ -1,0 +1,4 @@
+sources:
+  "0.0.1":
+    url: "https://github.com/owncloud/libcrashreporter-qt/archive/refs/tags/v0.0.1.zip"
+    sha256: "dfcc529390736dea422c2a860e9b979b81976609c1788c76238649efc1309c1e"
