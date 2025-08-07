@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    name: Building ${{ matrix.build_type }} ${{ matrix.profile }}
+    name: Building ${{ matrix.build_type }} ${{ matrix.profile || matrix.profile_host }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -19,6 +19,10 @@ jobs:
           # Release build type
           - os: ubuntu-latest
             profile: ubuntu-latest-x86_64
+            build_type: Release
+          - os: macos-latest
+            profile_build: macos-latest-armv8
+            profile_host: macos-latest-x86_64
             build_type: Release
           - os: macos-latest
             profile: macos-latest-armv8
@@ -62,15 +66,19 @@ jobs:
           echo "After cleanup:"
           df -h
 
-      - name: Conan Graph
-        run: |
-          conan graph info conanfile.py --profile=.github/profiles/${{ matrix.profile }}.conanprofile -s build_type=${{ matrix.build_type }}
-
       - name: Build
+        if: matrix.profile != null
         run: |
           conan remove "*" -c
           conan install . --profile=.github/profiles/${{ matrix.profile }}.conanprofile -s build_type=${{ matrix.build_type }} --build=missing
 
+      - name: Cross-Build
+        if: matrix.profile_build != null
+        run: |
+          conan remove "*" -c
+          conan install . --profile:host=.github/profiles/${{ matrix.profile_host }}.conanprofile --profile:build=.github/profiles/${{ matrix.profile_build }}.conanprofile -s build_type=${{ matrix.build_type }} --build=missing
+
+          #conan build . -pr:h x86-64-profile -pr:b arm-profile
       - name: Disk Space After
         run: |
           df -h
