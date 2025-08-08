@@ -19,6 +19,10 @@ class GlobalDependencyMirror(ConanFile):
         'qt/*:with_dbus': True,
     }
 
+    def configure(self):
+        if self.settings.os != "Linux":
+            self.options.rm_safe('qt/*:with_dbus')
+
     def requirements(self):
         self.requires("extra-cmake-modules/6.8.0")
         self.requires("zlib/1.3.1")
