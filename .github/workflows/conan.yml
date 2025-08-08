@@ -32,6 +32,11 @@ jobs:
             build_type: Release
 
     steps:
+      - name: Check LongPathsEnabled
+        if: runner.os == 'Windows'
+        run: |
+          Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled"
+
       - name: Checkout repository
         uses: actions/checkout@v3
 
