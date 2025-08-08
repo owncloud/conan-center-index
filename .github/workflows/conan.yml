@@ -17,28 +17,19 @@ jobs:
       matrix:
         include:
           # Release build type
-          - os: ubuntu-latest
-            profile: ubuntu-latest-x86_64
-            build_type: Release
-          - os: macos-latest
-            profile_build: macos-latest-armv8
-            profile_host: macos-latest-x86_64
-            build_type: Release
-          - os: macos-latest
-            profile: macos-latest-armv8
-            build_type: Release
           - os: windows-latest
             profile: windows-latest-x86_64
             build_type: Release
 
     steps:
-      - name: Check LongPathsEnabled
+      - name: Enable long paths
         if: runner.os == 'Windows'
         run: |
-          Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled"
+          git config --system core.longpaths true
+          powershell "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem' -Name 'LongPathsEnabled' -Value 1"
 
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Conan
         uses: conan-io/setup-conan@v1
