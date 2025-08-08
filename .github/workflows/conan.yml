@@ -13,6 +13,8 @@ jobs:
   build:
     name: Building ${{ matrix.build_type }} ${{ matrix.profile || matrix.profile_host }}
     runs-on: ${{ matrix.os }}
+    env:
+      CONAN_HOME: D:\a\b\
     strategy:
       matrix:
         include:
@@ -37,6 +39,7 @@ jobs:
       # following https://docs.conan.io/2/devops/devops_local_recipes_index.html#building-binaries-from-a-private-conan-center-index-fork
       - name: Setup
         run: |
+          echo ${{ runner.workspace }}
           conan config install ./.config/global.conf
           # local has to be before artifactory to ensure that the local recipes are used for buiding
           conan remote add local .
