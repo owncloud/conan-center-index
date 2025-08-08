@@ -35,6 +35,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Set CONAN_HOME on Windows only
+        if: runner.os == 'Windows'
+        run: echo "CONAN_HOME=D:\a\b\" >> $Env:GITHUB_ENV
+
       - name: Install Conan
         uses: conan-io/setup-conan@v1
 
