@@ -19,6 +19,8 @@ class GlobalDependencyMirror(ConanFile):
     }
 
     def configure(self):
+        self.options['qt/*'].with_pq = False
+        self.options['qt/*'].with_odbc = False
         if self.settings.os == "Linux":
             self.options['qt/*'].with_dbus = True
 
