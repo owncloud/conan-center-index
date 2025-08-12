@@ -74,6 +74,7 @@ jobs:
         if: matrix.profile != null
         run: |
           conan remove "*" -c
+          conan graph explain . --profile=.github/profiles/${{ matrix.profile }}.conanprofile -s build_type=${{ matrix.build_type }} || yes
           conan install . --profile=.github/profiles/${{ matrix.profile }}.conanprofile -s build_type=${{ matrix.build_type }} --build=missing
 
       - name: Cross-Build
