@@ -27,16 +27,16 @@ jobs:
             build_type: RelWithDebInfo
 
           # Release build type
-          - os: ubuntu-latest
-            profile: ubuntu-latest-x86_64
-            build_type: Release
+          #- os: ubuntu-latest
+          #  profile: ubuntu-latest-x86_64
+          #  build_type: Release
           #- os: macos-latest
           #  profile_build: macos-latest-armv8
           #  profile_host: macos-latest-x86_64
           #  build_type: Release
-          - os: macos-latest
-            profile: macos-latest-armv8
-            build_type: Release
+          #- os: macos-latest
+          #  profile: macos-latest-armv8
+          #  build_type: Release
           - os: [self-hosted, Windows, X64]
             profile: windows-latest-x86_64
             build_type: Release
@@ -44,6 +44,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+
+      - name: Cleanup workspace
+        shell: bash
+        run: |
+          ls -la ~
+          ls -la
+          rm -rf ~/.conan2
 
       #- name: Set CONAN_HOME on Windows only
       #  if: runner.os == 'Windows'
