@@ -16,6 +16,7 @@ class GlobalDependencyMirror(ConanFile):
         'qt/*:qttranslations': True,
         'qt/*:gui': True,
         'qt/*:widgets': True,
+        'openssl/*:shared': True,
     }
 
     def configure(self):
