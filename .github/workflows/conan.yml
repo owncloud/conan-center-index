@@ -20,10 +20,16 @@ jobs:
           - os: macos-latest
             profile: macos-latest-armv8
             build_type: Debug
+          - os: ubuntu-latest
+            profile: ubuntu-latest-x86_64
+            build_type: Debug
 
           # RelWithDebInfo build type
           - os: macos-latest
             profile: macos-latest-armv8
+            build_type: RelWithDebInfo
+          - os: ubuntu-latest
+            profile: ubuntu-latest-x86_64
             build_type: RelWithDebInfo
 
           # Release build type
