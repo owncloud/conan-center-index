@@ -16,6 +16,11 @@ jobs:
     strategy:
       matrix:
         include:
+          # Debug build type
+          - os: macos-latest
+            profile: macos-latest-armv8
+            build_type: Debug
+
           # RelWithDebInfo build type
           - os: macos-latest
             profile: macos-latest-armv8
