@@ -17,27 +17,27 @@ jobs:
       matrix:
         include:
           # Debug build type
-          - os: macos-latest
-            profile: macos-latest-armv8
-            build_type: Debug
+          #- os: macos-latest
+          #  profile: macos-latest-armv8
+          #  build_type: Debug
 
           # RelWithDebInfo build type
-          - os: macos-latest
-            profile: macos-latest-armv8
-            build_type: RelWithDebInfo
+          #- os: macos-latest
+          #  profile: macos-latest-armv8
+          #  build_type: RelWithDebInfo
 
           # Release build type
-          - os: ubuntu-latest
-            profile: ubuntu-latest-x86_64
-            build_type: Release
+          #- os: ubuntu-latest
+          #  profile: ubuntu-latest-x86_64
+          #  build_type: Release
           #- os: macos-latest
           #  profile_build: macos-latest-armv8
           #  profile_host: macos-latest-x86_64
           #  build_type: Release
-          - os: macos-latest
-            profile: macos-latest-armv8
-            build_type: Release
-          - os: windows-latest
+          #- os: macos-latest
+          #  profile: macos-latest-armv8
+          #  build_type: Release
+          - os: [self-hosted, Windows, X64]
             profile: windows-latest-x86_64
             build_type: Release
 
@@ -45,9 +45,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set CONAN_HOME on Windows only
-        if: runner.os == 'Windows'
-        run: echo "CONAN_HOME=D:\a\b\" >> $Env:GITHUB_ENV
+      - name: Cleanup workspace
+        shell: bash
+        run: |
+          ls -la ~
+          ls -la
+          rm -rf ~/.conan2
+
+      #- name: Set CONAN_HOME on Windows only
+      #  if: runner.os == 'Windows'
+      #  run: echo "CONAN_HOME=D:\a\b\" >> $Env:GITHUB_ENV
 
       - name: Install Conan
         uses: conan-io/setup-conan@v1
@@ -59,8 +66,8 @@ jobs:
           # local has to be before artifactory to ensure that the local recipes are used for buiding
           conan remote add local .
           conan remote remove conancenter
-          conan remote add oc https://artifactory.owncloud-demo.com/artifactory/api/conan/conan-local
-          conan remote login oc ${{ secrets.CONAN_USER }} -p ${{ secrets.CONAN_PASSWORD }}
+          #conan remote add oc https://artifactory.owncloud-demo.com/artifactory/api/conan/conan-local
+          #conan remote login oc ${{ secrets.CONAN_USER }} -p ${{ secrets.CONAN_PASSWORD }}
           conan remote list
           conan profile show
 
