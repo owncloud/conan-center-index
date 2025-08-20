@@ -13,8 +13,6 @@ jobs:
   build:
     name: Building ${{ matrix.build_type }} ${{ matrix.profile || matrix.profile_host }}
     runs-on: ${{ matrix.os }}
-    container:
-      image: kwtmueller/desktop-runner-windows
     strategy:
       matrix:
         include:
