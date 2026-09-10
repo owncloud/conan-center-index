@@ -1,16 +1,7 @@
 sources:
-  "23.01":
+  "26.02":
     url:
-      - https://www.7-zip.org/a/7z2301-src.tar.xz
-      - https://sourceforge.net/projects/sevenzip/files/7-Zip/23.01/7z2301-src.tar.xz
-    sha256: "356071007360e5a1824d9904993e8b2480b51b570e8c9faf7c0f58ebe4bf9f74"
-  "22.01":
-    url:
-      - https://www.7-zip.org/a/7z2201-src.tar.xz
-      - https://sourceforge.net/projects/sevenzip/files/7-Zip/22.01/7z2201-src.tar.xz
-    sha256: "393098730c70042392af808917e765945dc2437dee7aae3cfcc4966eb920fbc5"
-  "19.00":
-    url:
-      - https://www.7-zip.org/a/7z1900-src.7z
-      - https://sourceforge.net/projects/sevenzip/files/7-Zip/19.00/7z1900-src.7z
-    sha256: "9ba70a5e8485cf9061b30a2a84fe741de5aeb8dd271aab8889da0e9b3bf1868e"
+      - https://www.7-zip.org/a/7z2602-src.tar.xz
+      - https://github.com/ip7z/7zip/releases/download/26.02/7z2602-src.tar.xz
+      - https://sourceforge.net/projects/sevenzip/files/7-Zip/26.02/7z2602-src.tar.xz
+    sha256: "cf967c98bca02a4b8b16375f441825a8e141362f14be1969bbec8e1ca0bff9dd"

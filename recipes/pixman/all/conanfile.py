@@ -3,10 +3,7 @@ import os
 from conan import ConanFile
 from conan.tools.apple import fix_apple_shared_install_name
 from conan.tools.env import VirtualBuildEnv
-from conan.tools.files import (
-    apply_conandata_patches, copy, export_conandata_patches, get,
-    rename, replace_in_file, rm, rmdir
-)
+from conan.tools.files import copy, get, rename, rm, rmdir
 from conan.tools.layout import basic_layout
 from conan.tools.meson import Meson, MesonToolchain
 from conan.tools.microsoft import is_msvc
@@ -32,9 +29,6 @@ class PixmanConan(ConanFile):
         "fPIC": True,
     }
 
-    def export_sources(self):
-        export_conandata_patches(self)
-
     def config_options(self):
         if self.settings.os == "Windows":
             del self.options.fPIC
@@ -49,7 +43,7 @@ class PixmanConan(ConanFile):
         basic_layout(self, src_folder="src")
 
     def build_requirements(self):
-        self.tool_requires("meson/1.4.0")
+        self.tool_requires("meson/[>=1.4.0 <2]")
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
@@ -60,8 +54,15 @@ class PixmanConan(ConanFile):
         tc = MesonToolchain(self)
         tc.project_options.update({
             "libpng": "disabled",
-            "gtk": "disabled"
+            "gtk": "disabled",
+            "demos": "disabled",
+            "openmp": "disabled",
+            "tests": "disabled"
         })
+
+        # workaround https://gitlab.freedesktop.org/pixman/pixman/-/issues/129
+        if is_msvc(self) and self.settings.arch == "armv8":
+            tc.project_options["mmx"] = "disabled"
 
         # Android armv7 build of Pixman makes use of cpu-features functionality, provided in the NDK
         if self.settings.os == "Android":
@@ -71,13 +72,7 @@ class PixmanConan(ConanFile):
 
         tc.generate()
 
-    def _patch_sources(self):
-        apply_conandata_patches(self)
-        replace_in_file(self, os.path.join(self.source_folder, "meson.build"), "subdir('test')", "")
-        replace_in_file(self, os.path.join(self.source_folder, "meson.build"), "subdir('demos')", "")
-
     def build(self):
-        self._patch_sources()
         meson = Meson(self)
         meson.configure()
         meson.build()
