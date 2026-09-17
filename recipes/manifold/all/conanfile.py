@@ -4,7 +4,6 @@ from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
 from conan.tools.files import copy, get, rmdir
 import os
 
-
 required_conan_version = ">=2.0.9"
 
 class ManifoldConan(ConanFile):
@@ -28,21 +27,21 @@ class ManifoldConan(ConanFile):
         "with_parallel_acceleration": False,
     }
     implements = ["auto_shared_fpic"]
-
+        
     def layout(self):
         cmake_layout(self, src_folder="src")
 
     def requirements(self):
         # For CrossSection for 2D support
-        self.requires("clipper2/1.4.0")
+        self.requires("clipper2/2.0.1")
         if self.options.with_parallel_acceleration:
-            self.requires("onetbb/2022.0.0")
+            self.requires("onetbb/[>=2022.0.0 <2024]")
 
     def validate(self):
         check_min_cppstd(self, 17)
 
     def build_requirements(self):
-        self.tool_requires("cmake/[>=3.18 <4]")
+        self.tool_requires("cmake/[>=3.18]")
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
@@ -53,6 +52,7 @@ class ManifoldConan(ConanFile):
         tc.cache_variables["MANIFOLD_TEST"] = False
         tc.cache_variables["MANIFOLD_CBIND"] = False
         tc.cache_variables["MANIFOLD_PYBIND"] = False
+        tc.cache_variables["MANIFOLD_STRICT"] = False # no -Werror
         tc.cache_variables["MANIFOLD_PAR"] = self.options.with_parallel_acceleration
         tc.generate()
 
@@ -75,6 +75,9 @@ class ManifoldConan(ConanFile):
 
     def package_info(self):
         self.cpp_info.libs = ["manifold"]
+        self.cpp_info.requires = ["clipper2::clipper2"]
+        if self.options.with_parallel_acceleration:
+            self.cpp_info.requires.append('onetbb::libtbb')
 
         if self.settings.os in ["Linux", "FreeBSD"]:
             self.cpp_info.system_libs.append("m")

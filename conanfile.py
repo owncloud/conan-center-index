@@ -32,17 +32,18 @@ class GlobalDependencyMirror(ConanFile):
         self.requires("kdsingleapplication/1.2.0")
         self.requires("libregraphapi/1.0.4")
         self.requires("nlohmann_json/3.11.3")
-        self.requires("openssl/3.4.2")
-        self.requires("qt/6.8.3")
+        self.requires("openssl/3.4.7")
+        self.requires("qt/6.10.3")
         self.requires("qtkeychain/0.15.0")
-        self.requires("sqlite3/3.49.1")
-        self.requires("zlib/1.3.1")
+        self.requires("sqlite3/3.51.3")
+        self.requires("zlib/1.3.2")
 
         if self.settings.os == "Macos":
             self.requires("sparkle/2.7.0")
 
     def build_requirements(self):
-        self.tool_requires("cmake/3.30.0")
+        # Must stay below 4: extra-cmake-modules pins cmake/[>=3.16 <4].
+        self.tool_requires("cmake/3.31.12")
 
     def build(self):
         pass

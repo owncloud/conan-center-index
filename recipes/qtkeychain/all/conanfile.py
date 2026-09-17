@@ -41,7 +41,7 @@ class PackageConan(ConanFile):
     def requirements(self):
         self.requires("qt/[>=6.7 <7]", transitive_headers=True, transitive_libs=True)
         if self.settings.os == "Linux":
-            self.requires("libsecret/0.20.4")
+            self.requires("libsecret/0.21.7")
 
     def system_requirements(self):
         apt = package_manager.Apt(self)
