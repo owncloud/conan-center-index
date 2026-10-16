@@ -22,8 +22,9 @@ obtainable prebuilt.
 - **Primary language(s):** Python (Conan recipes)
 - **Build system:** Conan 2
 - **Test framework:** per-recipe `test_package/` consumed by `conan create` / `conan test`
-- **CI system:** none in this repository. Packages are built and published by hand; see
-  "Build & Test Commands" below.
+- **CI system:** GitHub Actions, for PR hygiene only - PR title and Conventional Commits.
+  Nothing builds, tests or publishes a recipe: packages are built and published by hand;
+  see "Build & Test Commands" below.
 - **License:** MIT, inherited from upstream (`LICENSE`, Copyright (c) 2019 Conan.io)
 
 ## Architecture & Key Paths
@@ -40,6 +41,8 @@ obtainable prebuilt.
   (HTTP timeout, system package manager mode)
 - `.github/profiles/` - Conan profiles, one per target platform:
   `macos-latest-armv8`, `macos-latest-x86_64`, `ubuntu-latest-x86_64`, `windows-latest-x86_64`
+- `.github/workflows/` - PR checks only: `lint-pr-title.yml` (PR title) and `commits.yml`
+  (Conventional Commits on every commit). No build workflow
 - `docs/` - upstream's recipe authoring documentation, including `docs/adding_packages/` and
   `docs/code_of_conduct.md`
 - `assets/` - upstream's images
@@ -62,6 +65,10 @@ Everything else under `recipes/` is upstream content and should be byte-identica
   (`git commit -S`). Use [Conventional Commits](https://www.conventionalcommits.org/) format.
   The repository squash-merges and takes the PR title as the commit subject, so the PR title
   must follow the same format.
+- **Checked on every PR:** the PR title (`lint-pr-title.yml`), and the Conventional Commits
+  format of *every* commit in the PR, not just the squash subject (`commits.yml`). DCO
+  sign-off is checked by the DCO app, commit signatures by the org branch policy. Fix
+  offending commits before pushing (`git commit --amend`, `git rebase --signoff`).
 - **Linear history:** the org default branch policy requires it. A merge commit cannot be
   pushed to `master` - never resync upstream with `git merge`.
 - **PR process:** open a PR against `master`; one approval is required and self-approval is
@@ -131,7 +138,8 @@ of the path length limit.
   README and contribution guidance here are ownCloud's.
 - **License:** MIT, inherited from upstream. Recipes describe third-party software and each
   declares its own upstream license in `conanfile.py`; do not change either.
-- **No CI.** Nothing verifies a change automatically. Any recipe or version change must be
+- **No build CI.** The PR checks only cover titles, commit messages and sign-off; nothing
+  verifies that a recipe resolves or builds. Any recipe or version change must be
   built locally on the affected profiles before it is proposed, and the platforms that were
   not covered must be named explicitly in the PR.
 
