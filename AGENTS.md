@@ -67,9 +67,9 @@ Everything else under `recipes/` is upstream content and should be byte-identica
   must follow the same format.
 - **Checked on every PR:** the PR title (`lint-pr-title.yml`), and for *every* commit in the
   PR - not just the squash subject - the Conventional Commits format and a `Signed-off-by`
-  trailer matching the commit author (`commits.yml`). Fix offending commits before pushing
-  (`git commit --amend -s`, `git rebase --signoff`, `git rebase -i` to reword). Commit
-  signatures are enforced by the org branch policy, not by these workflows.
+  trailer from the commit's author or committer (`commits.yml`). Fix offending commits
+  before pushing (`git commit --amend -s`, `git rebase --signoff`, `git rebase -i` to
+  reword). Commit signatures are enforced by the org branch policy, not by these workflows.
 - **Linear history:** the org default branch policy requires it. A merge commit cannot be
   pushed to `master` - never resync upstream with `git merge`.
 - **PR process:** open a PR against `master`; one approval is required and self-approval is

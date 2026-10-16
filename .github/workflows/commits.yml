@@ -21,24 +21,30 @@ jobs:
     permissions:
       pull-requests: read
     steps:
-      - name: Require a Signed-off-by matching the author on every commit
+      - name: Require a Signed-off-by from the author or committer on every commit
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
+          PR_COMMITS: ${{ github.event.pull_request.commits }}
         run: |
-          # shellcheck disable=SC2016 # $email is a jq variable, not a shell one
+          # The commits endpoint stops at 250 even with --paginate.
+          if [ "$PR_COMMITS" -gt 250 ]; then
+            echo "::error::$PR_COMMITS commits is more than the 250 this check can list; split or squash the PR."
+            exit 1
+          fi
+          # shellcheck disable=SC2016 # $ids is a jq variable, not a shell one
           missing=$(gh api --paginate "repos/$REPO/pulls/$PR/commits" --jq '
             .[]
-            | (.commit.author.email | ascii_downcase) as $email
+            | ([.commit.author.email, .commit.committer.email] | map(ascii_downcase)) as $ids
             | select(
-                [.commit.message | scan("(?m)^Signed-off-by: [^<]*<([^>]+)>") | .[0] | ascii_downcase]
-                | any(.[]; . == $email) | not
+                [.commit.message | scan("(?mi)^signed-off-by:\\s*[^<]*<([^>]+)>") | .[0] | ascii_downcase]
+                | any(.[]; . as $e | any($ids[]; . == $e)) | not
               )
             | "\(.sha[0:12]) \(.commit.author.email) \(.commit.message | split("\n")[0])"
           ')
           if [ -n "$missing" ]; then
-            echo "::error::Commits without a Signed-off-by trailer matching their author (use git commit -s):"
+            echo "::error::Commits without a Signed-off-by trailer from their author or committer (use git commit -s):"
             echo "$missing"
             exit 1
           fi
