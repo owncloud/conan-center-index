@@ -592,9 +592,7 @@ class QtConan(ConanFile):
             tc.variables[f"FEATURE_{feature}"] = "OFF"
 
 
-        if self.settings.os == "Macos":
-            tc.variables["FEATURE_framework"] = "OFF"
-        elif self.settings.os == "Android":
+        if self.settings.os == "Android":
             tc.variables["CMAKE_ANDROID_NATIVE_API_LEVEL"] = self.settings.os.api_level
             tc.variables["ANDROID_ABI"] = {"armv7": "armeabi-v7a",
                                            "armv8": "arm64-v8a",
