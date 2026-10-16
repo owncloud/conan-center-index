@@ -38,7 +38,7 @@ jobs:
             .[]
             | ([.commit.author.email, .commit.committer.email] | map(ascii_downcase)) as $ids
             | select(
-                [.commit.message | scan("(?mi)^signed-off-by:\\s*[^<]*<([^>]+)>") | .[0] | ascii_downcase]
+                [.commit.message | scan("(?mi)^signed-off-by:[ \\t]*[^<\\n]*<([^>\\n]+)>") | .[0] | ascii_downcase]
                 | any(.[]; . as $e | any($ids[]; . == $e)) | not
               )
             | "\(.sha[0:12]) \(.commit.author.email) \(.commit.message | split("\n")[0])"
