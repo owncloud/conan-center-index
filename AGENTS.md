@@ -55,6 +55,14 @@ These four have no upstream counterpart and are the entire intended local delta:
 
 Everything else under `recipes/` is upstream content and should be byte-identical to upstream.
 
+### Local patches to upstream recipes
+
+These must be upstreamed and removed on the next resync:
+
+- `recipes/dbus/all/conanfile.py` — changed `meson/1.4.0` pin to
+  `meson/[>=1.4.0 <2]` because upstream pruned meson/1.4.0.
+  Upstream the fix to `conan-io/conan-center-index`.
+
 ## Development Conventions
 
 - **Branching:** `master` only; there are no maintenance branches.
