@@ -18,6 +18,6 @@ and almost every recipe in it is upstream content.
   [upstream](https://github.com/conan-io/conan-center-index/issues). Fixes merged there are
   picked up here on the next resync.
 - A problem with one of the ownCloud-only recipes (`kdsingleapplication`, `libregraphapi`,
-  `qtkeychain`, `sparkle`), with the root `conanfile.py`, or with a published package in the
+  `qtkeychain`, `sparkle`), or with a published package in the
   ownCloud Artifactory belongs to the desktop maintainers - raise it in the desktop channels
   above.

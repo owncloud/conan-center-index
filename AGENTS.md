@@ -34,9 +34,9 @@ obtainable prebuilt.
   `recipes/<name>/<folder>/` (usually `all/`, or a version family such as `6.x.x`) containing
   `conanfile.py`, `conandata.yml` (source URLs, checksums, patch list), an optional `patches/`
   directory and a `test_package/`
-- `conanfile.py` - the root aggregator, class `GlobalDependencyMirror`. This is not a package
-  recipe: it is the list of what gets built and uploaded, and the single place where the
-  desktop clients' dependency versions and Qt options are pinned
+- There is no root `conanfile.py`: the desktop client's dependency versions and Qt options
+  are pinned in the client's own `conanfile.py` ([owncloud/client](https://github.com/owncloud/client)). This repository only provides
+  the recipes
 - `.config/global.conf` - Conan client configuration installed with `conan config install`
   (HTTP timeout, system package manager mode)
 - `.github/profiles/` - Conan profiles, one per target platform:
@@ -95,15 +95,12 @@ conan remote login oc "$CONAN_USER" -p "$CONAN_PASSWORD"
 conan remote list
 conan profile show
 
-# Cheap gate: resolve the dependency graph without compiling anything
-conan graph info . --profile=.github/profiles/macos-latest-armv8.conanprofile -s build_type=Release
+# In a checkout of the desktop client (github.com/owncloud/client), with its profiles:
+# cheap gate - resolve the dependency graph without compiling anything
+conan graph info . --profile=.conan/profiles/macos-latest-armv8.conanprofile -s build_type=Release
 
-# Build everything in the root conanfile.py for one profile
-conan install . --profile=.github/profiles/macos-latest-armv8.conanprofile -s build_type=Release --build=missing
-
-# Cross-compile (host and build profiles differ)
-conan install . --profile:host=.github/profiles/macos-latest-x86_64.conanprofile \
-  --profile:build=.github/profiles/macos-latest-armv8.conanprofile -s build_type=Release --build=missing
+# build all of the client's dependencies for one profile
+conan install . --profile=.conan/profiles/macos-latest-armv8.conanprofile -s build_type=Release --build=missing
 
 # Exercise a single recipe against its test_package
 conan create recipes/qtkeychain/all --version=0.15.0 --build=missing
@@ -128,11 +125,11 @@ of the path length limit.
   `git diff --stat upstream/master -- recipes docs assets`, which must show *only* those four
   recipe trees as additions.
 - **Upstream prunes old versions.** Upstream keeps only the newest patch release per minor,
-  so a resync routinely deletes the exact versions the root `conanfile.py` pins and the build
-  stops resolving. After every resync, re-check each `requires`/`tool_requires` against the
-  relevant `recipes/<name>/config.yml` and bump as needed.
+  so a resync routinely deletes the exact versions the desktop client's `conanfile.py` pins
+  and its build stops resolving. After every resync, re-check each `requires`/`tool_requires`
+  there against the relevant `recipes/<name>/config.yml` and bump the client as needed.
 - **`cmake` must stay below 4.** `recipes/extra-cmake-modules/all/conanfile.py` pins
-  `cmake/[>=3.16 <4]`, so the root `conanfile.py` cannot `tool_requires` a 4.x cmake.
+  `cmake/[>=3.16 <4]`, so the desktop client cannot `tool_requires` a 4.x cmake.
 - **Do not check `.github/`, `CONTRIBUTING.md` or `README.md` out from upstream.** Upstream's
   issue templates, PR template and `stale.yml` workflow were removed deliberately, and the
   README and contribution guidance here are ownCloud's.
@@ -166,15 +163,16 @@ of the path length limit.
 - This is a Conan recipe index, not an application. Almost every file here is upstream
   content that ownCloud carries rather than maintains, so the default answer to "should I
   change this file?" is no.
-- The root `conanfile.py` is the highest-leverage file in the repository: it decides which
-  dependency versions the desktop clients get. Treat a change to it as a change to the
-  desktop build.
+- The dependency versions the desktop clients get are decided in the client's
+  `conanfile.py`, not here; a resync can still break the client build by removing a pinned
+  version.
 - Qt is the dominant dependency, and its recipe options (`qtdeclarative`, `qtshadertools`,
   `qtwayland`, `with_egl`, `with_libjpeg`, `with_odbc`, `with_pq`, ...) move between Qt
   minors. A Qt bump is never just a version string.
 - Recipe changes are expensive to verify: a full Qt build takes a long time and disk is a
   real constraint. Use `conan graph info` to check resolution first, and `conan create` on a
-  single recipe rather than `conan install .` on the whole set when only one package changed.
+  single recipe rather than building all of the client's dependencies when only one package
+  changed.
 - The `docs/` directory is upstream's recipe authoring guide and is the right reference for
   how a recipe should be written.
 - Match existing recipe style, keep PRs focused, and do not refactor unrelated recipes in the

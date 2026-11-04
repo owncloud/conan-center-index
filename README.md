@@ -21,13 +21,12 @@ maintained here. The intended local delta is four recipes with no upstream count
 | `qtkeychain` | 0.15.0 |
 | `sparkle` | 2.7.0 (macOS only) |
 
-Plus the ownCloud-specific plumbing: `conanfile.py`, `.config/global.conf` and `.github/profiles/`.
+Plus the ownCloud-specific plumbing: `.config/global.conf` and `.github/profiles/`. The
+desktop client's dependency versions and Qt options are pinned in the client's own
+`conanfile.py` ([owncloud/client](https://github.com/owncloud/client)); this repository only provides the recipes.
 
 ## Layout
 
-- `conanfile.py` - the root aggregator (`GlobalDependencyMirror`). Not a package recipe: it
-  is the list of what gets built and uploaded, and the single place where the desktop
-  clients' dependency versions and Qt options are pinned.
 - `recipes/<name>/config.yml` - maps each version of a package to a recipe folder, then
   `recipes/<name>/<folder>/` holds `conanfile.py`, `conandata.yml`, optional `patches/` and a
   `test_package/`.
@@ -76,23 +75,25 @@ $Env:CONAN_HOME = "D:\a\b\"
 
 ### Build
 
-Pick a profile from `.github/profiles/` and a build type (`Release`, `RelWithDebInfo`, `Debug`):
+With the `local` remote set up, build the desktop client's dependencies from a checkout of
+[owncloud/client](https://github.com/owncloud/client), using one of its profiles and a build type (`Release`, `RelWithDebInfo`, `Debug`):
 
 ```bash
-conan install . --profile=.github/profiles/macos-latest-armv8.conanprofile \
+cd path/to/client
+conan install . --profile=.conan/profiles/macos-latest-armv8.conanprofile \
   -s build_type=Release --build=missing
 ```
 
-To cross-compile, pass the host and build profiles separately:
+Use `conan graph info . --profile=<profile> -s build_type=<type>` in the client checkout to
+check that the dependencies resolve before starting an expensive build.
+
+To exercise a single recipe from this repository against its `test_package`, use one of the
+profiles in `.github/profiles/`:
 
 ```bash
-conan install . --profile:host=.github/profiles/macos-latest-x86_64.conanprofile \
-  --profile:build=.github/profiles/macos-latest-armv8.conanprofile \
-  -s build_type=Release --build=missing
+conan create recipes/qtkeychain/all --version=0.15.0 \
+  --profile=.github/profiles/macos-latest-armv8.conanprofile --build=missing
 ```
-
-Use `conan graph info . --profile=<profile> -s build_type=<type>` to check that the
-dependencies in `conanfile.py` resolve before starting an expensive build.
 
 ### Publish
 
@@ -126,7 +127,7 @@ cp -R "$TMPDIR/oc-recipes/." recipes/
 git add -A
 ```
 
-Do **not** take `README.md`, `.gitignore`, `.config/`, `conanfile.py`, `.github/profiles/` or the
+Do **not** take `README.md`, `.gitignore`, `.config/`, `.github/profiles/` or the
 community health files from upstream, and leave `CONTRIBUTING.md`, `.github/ISSUE_TEMPLATE/`,
 `.github/PULL_REQUEST_TEMPLATE.md` and `.github/workflows/stale.yml` deleted.
 
@@ -140,8 +141,9 @@ This must show **only** the four ownCloud recipe trees as additions. Anything el
 upstream recipe is still being patched locally, which should be sent upstream instead.
 
 Upstream keeps only the newest patch release per minor, so a resync routinely deletes the
-exact versions `conanfile.py` pins. Re-check every `requires` and `tool_requires` against the
-relevant `recipes/<name>/config.yml` afterwards and bump as needed. Note that `cmake` must
+exact versions the desktop client's `conanfile.py` pins. Re-check every `requires` and
+`tool_requires` there against the relevant `recipes/<name>/config.yml` afterwards and bump
+the client as needed. Note that `cmake` must
 stay below 4 while `extra-cmake-modules` pins `cmake/[>=3.16 <4]`.
 
 ## Contributing
@@ -152,7 +154,7 @@ Changes to an upstream recipe belong
 and the `docs/` directory here for how recipes are written and reviewed. Fixes merged
 upstream arrive here on the next resync.
 
-Changes to the four ownCloud-only recipes, to `conanfile.py`, or to the plumbing are made
+Changes to the four ownCloud-only recipes or to the plumbing are made
 here by pull request against `master`. Commits must be signed and DCO signed-off
 (`git commit -S -s`), and commit subjects and PR titles follow
 [Conventional Commits](https://www.conventionalcommits.org/).
