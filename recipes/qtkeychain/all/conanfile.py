@@ -52,6 +52,9 @@ class PackageConan(ConanFile):
         if self.settings.os == "Linux":
             self.requires("libsecret/0.21.7")
 
+    def build_requirements(self):
+        self.tool_requires("cmake/[>=3.16 <4]")
+
     def system_requirements(self):
         apt = package_manager.Apt(self)
         apt.install(["libsecret-1-dev"], update=True, check=True)
