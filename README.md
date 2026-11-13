@@ -12,7 +12,8 @@ This is a **detached copy, not a GitHub fork.** It has no upstream parent, so Gi
 adding it as an ordinary git remote.
 
 Almost everything under `recipes/` is upstream content that is carried rather than
-maintained here. The intended local delta is four recipes with no upstream counterpart:
+maintained here. The intended local delta is four recipes with no upstream counterpart,
+plus the patches in `.sync/patches/` that are carried until upstream takes them:
 
 | Recipe | Versions |
 | --- | --- |
@@ -145,8 +146,10 @@ the patched files.
 Upstream keeps only the newest patch release per minor, so a resync routinely deletes the
 exact versions `conanfile.py` pins. [`scripts/check-pins.py`](scripts/check-pins.py)
 lists every pin that no longer resolves, with the version to bump to, in the PR body. The
-workflow also adds `conan graph info` results for every profile. Bump the pins in a separate
-pull request. Note that `cmake` must stay below 4 while `extra-cmake-modules` pins
+workflow also adds `conan graph info` results for every profile, and opens the PR as a draft
+while any pin is broken. Push the bumps to the sync branch itself, because the new versions
+often arrive only with the sync; that also stops the workflow from replacing the branch.
+Then mark the PR ready. Note that `cmake` must stay below 4 while `extra-cmake-modules` pins
 `cmake/[>=3.16 <4]`.
 
 ## Contributing

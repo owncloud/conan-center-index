@@ -54,14 +54,16 @@ obtainable prebuilt.
 
 ### ownCloud-only recipes
 
-These four have no upstream counterpart and are the entire intended local delta:
+These four have no upstream counterpart. With the patches below, they are the entire intended
+local delta:
 
 - `recipes/kdsingleapplication/` - 1.2.0, 1.1.0
 - `recipes/libregraphapi/` - 1.0.4
 - `recipes/qtkeychain/` - 0.15.0
 - `recipes/sparkle/` - 2.7.0 (macOS only)
 
-Everything else under `recipes/` is upstream content and should be byte-identical to upstream.
+Everything else under `recipes/` is upstream content and should be byte-identical to upstream,
+except for the files the patches below touch.
 
 ### Local patches to upstream recipes
 
@@ -141,8 +143,9 @@ of the path length limit.
   from upstream. Normally the weekly `sync-upstream.yml` workflow runs it.
 - **Upstream prunes old versions.** Upstream keeps only the newest patch release per minor,
   so a resync routinely deletes the exact versions the root `conanfile.py` pins and the build
-  stops resolving. `scripts/check-pins.py` lists them, with the version to bump to; bump
-  them in a separate PR.
+  stops resolving. `scripts/check-pins.py` lists them, with the version to bump to, and the
+  sync PR stays a draft until they are bumped. Bump them on the sync PR's branch, because the
+  new versions often arrive only with that sync.
 - **`cmake` must stay below 4.** `recipes/extra-cmake-modules/all/conanfile.py` pins
   `cmake/[>=3.16 <4]`, so the root `conanfile.py` cannot `tool_requires` a 4.x cmake.
 - **Do not check `.github/`, `CONTRIBUTING.md` or `README.md` out from upstream.** Upstream's
