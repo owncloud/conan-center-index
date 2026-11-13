@@ -22,9 +22,9 @@ obtainable prebuilt.
 - **Primary language(s):** Python (Conan recipes)
 - **Build system:** Conan 2
 - **Test framework:** per-recipe `test_package/` consumed by `conan create` / `conan test`
-- **CI system:** GitHub Actions, for PR hygiene only - PR title and Conventional Commits.
-  Nothing builds, tests or publishes a recipe: packages are built and published by hand;
-  see "Build & Test Commands" below.
+- **CI system:** GitHub Actions, for PR hygiene (PR title and Conventional Commits) and
+  the weekly upstream sync PR. Nothing builds, tests or publishes a recipe: packages are
+  built and published by hand; see "Build & Test Commands" below.
 - **License:** MIT, inherited from upstream (`LICENSE`, Copyright (c) 2019 Conan.io)
 
 ## Architecture & Key Paths
@@ -41,8 +41,13 @@ obtainable prebuilt.
   (HTTP timeout, system package manager mode)
 - `.github/profiles/` - Conan profiles, one per target platform:
   `macos-latest-armv8`, `macos-latest-x86_64`, `ubuntu-latest-x86_64`, `windows-latest-x86_64`
-- `.github/workflows/` - PR checks only: `lint-pr-title.yml` (PR title) and `commits.yml`
-  (Conventional Commits on every commit). No build workflow
+- `.github/workflows/` - PR checks `lint-pr-title.yml` (PR title) and `commits.yml`
+  (Conventional Commits on every commit), plus `sync-upstream.yml`, which opens the weekly
+  upstream sync PR. No build workflow
+- `.sync/` - upstream sync state: the last synced upstream commit, the list of
+  ownCloud-only recipes and the patches carried against upstream recipes
+- `scripts/sync-upstream.sh` - the resync itself; `scripts/check-pins.py` - reports pins
+  that upstream has pruned
 - `docs/` - upstream's recipe authoring documentation, including `docs/adding_packages/` and
   `docs/code_of_conduct.md`
 - `assets/` - upstream's images
@@ -60,11 +65,12 @@ Everything else under `recipes/` is upstream content and should be byte-identica
 
 ### Local patches to upstream recipes
 
-These must be upstreamed and removed on the next resync:
+`.sync/patches/` is the source of truth: the sync re-applies each patch to the fresh
+upstream tree and deletes it once upstream has absorbed it. Each one should be upstreamed:
 
-- `recipes/dbus/all/conanfile.py` — changed `meson/1.4.0` pin to
-  `meson/[>=1.4.0 <2]` because upstream pruned meson/1.4.0.
-  Upstream the fix to `conan-io/conan-center-index`.
+- `dbus-meson-version-range.patch` - `recipes/dbus/all/conanfile.py` pins `meson/1.4.0`,
+  which upstream pruned; changed to `meson/[>=1.4.0 <2]`. Upstream the fix to
+  `conan-io/conan-center-index`.
 
 ## Development Conventions
 
@@ -125,20 +131,18 @@ of the path length limit.
 
 ## Important Constraints
 
-- **Never hand-edit an upstream recipe.** The local delta is meant to be exactly the four
-  ownCloud-only recipes listed above. Patching an upstream recipe in place creates a conflict
-  that has to be re-resolved on every resync, and historically every such patch was later
-  merged upstream anyway and became dead weight. Send the fix upstream instead.
-- **Resync upstream by replacing the tree, not by merging.** `master` requires linear history,
-  and the repository squash-merges, so a merge commit is neither pushable nor useful. Set the
-  four ownCloud recipes aside, check `recipes/`, `docs/` and `assets/` out from
-  `upstream/master`, then restore them. Verify with
-  `git diff --stat upstream/master -- recipes docs assets`, which must show *only* those four
-  recipe trees as additions.
+- **Never hand-edit an upstream recipe.** Send the fix upstream. If the build cannot wait,
+  carry it as a patch in `.sync/patches/` (generated with `git diff`), never as an in-place
+  edit: the next resync overwrites in-place edits, and the sync's delta check fails on them.
+- **Resync with `scripts/sync-upstream.sh`, not by merging.** `master` requires linear
+  history, and the repository squash-merges, so a merge commit is neither pushable nor
+  useful. The script replaces the shared tree with upstream's, restores the recipes listed in
+  `.sync/owncloud-recipes`, re-applies `.sync/patches/` and checks that nothing else differs
+  from upstream. Normally the weekly `sync-upstream.yml` workflow runs it.
 - **Upstream prunes old versions.** Upstream keeps only the newest patch release per minor,
   so a resync routinely deletes the exact versions the root `conanfile.py` pins and the build
-  stops resolving. After every resync, re-check each `requires`/`tool_requires` against the
-  relevant `recipes/<name>/config.yml` and bump as needed.
+  stops resolving. `scripts/check-pins.py` lists them, with the version to bump to; bump
+  them in a separate PR.
 - **`cmake` must stay below 4.** `recipes/extra-cmake-modules/all/conanfile.py` pins
   `cmake/[>=3.16 <4]`, so the root `conanfile.py` cannot `tool_requires` a 4.x cmake.
 - **Do not check `.github/`, `CONTRIBUTING.md` or `README.md` out from upstream.** Upstream's
