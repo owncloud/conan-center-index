@@ -67,5 +67,4 @@ class KDSingleApplicationConan(ConanFile):
         self.cpp_info.set_property("cmake_file_name", "KDSingleApplication-qt6")
         self.cpp_info.set_property("cmake_target_name", "KDAB::kdsingleapplication")
         self.cpp_info.set_property("cmake_target_aliases", ["kdsingleapplication"])
-        self.cpp_info.filenames["cmake_find_package"] = "KDSingleApplication-qt6"
 
