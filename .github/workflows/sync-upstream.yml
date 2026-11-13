@@ -1,0 +1,228 @@
+name: Sync upstream
+
+on:
+  schedule:
+    # Weekly, so that each sync stays small enough to review.
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+env:
+  BRANCH: chore/sync-upstream
+  TITLE: 'chore: sync recipes with upstream conan-center-index'
+  CONAN_VERSION: '2.34.0'
+
+# The sync itself runs only git and our own scripts. Resolving the graph runs
+# upstream recipe code, so that job gets no secrets and hands back nothing but
+# a report; the app token exists only in the last job, which runs no upstream
+# code.
+jobs:
+  sync:
+    name: Sync
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      result: ${{ steps.sync.outputs.result }}
+      upstream: ${{ steps.sync.outputs.upstream }}
+      # The later jobs sync this same master commit, not whatever master is by then.
+      master: ${{ steps.sync.outputs.master }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: master
+          persist-credentials: false
+
+      - name: Sync
+        id: sync
+        run: |
+          echo "master=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          rc=0
+          scripts/sync-upstream.sh || rc=$?
+          case "$rc" in
+            0 | 11) echo "result=changed" >> "$GITHUB_OUTPUT" ;;
+            10) echo "result=current" >> "$GITHUB_OUTPUT" ;;
+            *) exit "$rc" ;;
+          esac
+          echo "upstream=$(cat .sync/upstream-commit)" >> "$GITHUB_OUTPUT"
+
+  graph:
+    name: Resolve the dependency graph
+    needs: sync
+    if: needs.sync.outputs.result == 'changed'
+    runs-on: ubuntu-latest
+    # Informational: a failure here must not stop the pull request.
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.sync.outputs.master }}
+          persist-credentials: false
+
+      - name: Resolve
+        env:
+          UPSTREAM: ${{ needs.sync.outputs.upstream }}
+        run: |
+          rc=0
+          scripts/sync-upstream.sh "$UPSTREAM" || rc=$?
+          [ "$rc" = 0 ] || [ "$rc" = 11 ] || exit "$rc"
+          # Without a root conanfile.py there is no graph to resolve here.
+          [ -f conanfile.py ] || exit 0
+          pipx install "conan==$CONAN_VERSION"
+          export CONAN_HOME="$RUNNER_TEMP/conan-home"
+          conan config install .config/global.conf
+          conan remote remove conancenter
+          conan remote add local . --type=local-recipes-index
+          {
+            echo
+            echo "## Dependency graph"
+            echo
+            echo "\`conan graph info\` per profile with Conan $CONAN_VERSION, against this tree only. Nothing was built."
+            echo
+            echo "| Profile | Result |"
+            echo "| --- | --- |"
+            for profile in .github/profiles/*.conanprofile; do
+              if conan graph info . -pr:h "$profile" -pr:b .github/profiles/ubuntu-latest-x86_64.conanprofile \
+                  -s build_type=Release --format=json > "$RUNNER_TEMP/graph.json" 2> "$RUNNER_TEMP/graph.err"; then
+                result="resolved, $(jq '.graph.nodes | length - 1' "$RUNNER_TEMP/graph.json") dependencies"
+              else
+                error="$(grep -m1 '^ERROR' "$RUNNER_TEMP/graph.err" | tr '|`' "/'" || true)"
+                if [ -n "$error" ]; then result="**failed:** \`$error\`"; else result="**failed:** see the job log"; fi
+                cat "$RUNNER_TEMP/graph.err" >&2
+              fi
+              echo "| \`$(basename "$profile" .conanprofile)\` | $result |"
+            done
+          } > "$RUNNER_TEMP/graph.md"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: graph-report
+          path: ${{ runner.temp }}/graph.md
+          retention-days: 7
+          overwrite: true
+
+  pull-request:
+    name: Open or update the pull request
+    needs: [sync, graph]
+    if: ${{ !cancelled() && needs.sync.result == 'success' && needs.sync.outputs.result == 'changed' }}
+    runs-on: ubuntu-latest
+    # Holds the app's secrets; restrict its deployment branches to master.
+    environment: sync-upstream
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.sync.outputs.master }}
+          persist-credentials: false
+
+      - name: Sync
+        id: sync
+        env:
+          UPSTREAM: ${{ needs.sync.outputs.upstream }}
+        run: |
+          rc=0
+          scripts/sync-upstream.sh --report "$RUNNER_TEMP/report.md" "$UPSTREAM" || rc=$?
+          case "$rc" in
+            0) echo "result=clean" >> "$GITHUB_OUTPUT" ;;
+            11) echo "result=attention" >> "$GITHUB_OUTPUT" ;;
+            *) exit "$rc" ;;
+          esac
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        continue-on-error: true
+        with:
+          name: graph-report
+          path: ${{ runner.temp }}/graph
+
+      # An app token rather than GITHUB_TOKEN: a pull request pushed with
+      # GITHUB_TOKEN does not trigger workflows, so the required checks would
+      # never run on it.
+      - name: Create app token
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.SYNC_APP_CLIENT_ID }}
+          private-key: ${{ secrets.SYNC_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Open or update the pull request
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+          RESULT: ${{ steps.sync.outputs.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          bot="${APP_SLUG}[bot]"
+          email="$(gh api "/users/$bot" --jq .id)+$bot@users.noreply.github.com"
+
+          # The branch head as seen now, so the push below cannot overwrite a commit
+          # that lands after the check.
+          lease="$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)"
+          # Only a pull request from this repository's own branch, never a fork's.
+          pr="$(gh api "repos/$GITHUB_REPOSITORY/pulls?head=$GITHUB_REPOSITORY_OWNER:$BRANCH&state=open" \
+            --jq '.[0].number // empty')"
+          if [ -n "$pr" ]; then
+            others="$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$pr/commits" \
+              --jq '.[] | .author.login // "(unlinked)"' | grep -vxF "$bot" || true)"
+            if [ -n "$others" ]; then
+              echo "::warning::#$pr has commits by someone else; leaving it alone until it is merged or closed"
+              exit 0
+            fi
+          fi
+
+          git config user.name "$bot"
+          git config user.email "$email"
+          git commit -q -s -m "$TITLE" -m "Upstream: conan-io/conan-center-index@$(cat .sync/upstream-commit)"
+          gh auth setup-git
+          git push -q --force-with-lease="refs/heads/$BRANCH:$lease" origin "HEAD:refs/heads/$BRANCH"
+
+          {
+            head -c 50000 "$RUNNER_TEMP/report.md"
+            printf '\n## Dependency graph\n\n'
+            # The graph job ran upstream code, so only rows of the exact expected shape
+            # are taken from its report; errors stay inside a code span.
+            # shellcheck disable=SC2016 # the backticks are literal
+            row='^\| `[A-Za-z0-9_.-]+` \| (resolved, [0-9]+ dependencies|\*\*failed:\*\* see the job log|\*\*failed:\*\* `[^`|\\]{1,300}`) \|$'
+            # Printable ASCII only, so no control byte or lookalike character can reach the body.
+            rows="$(LC_ALL=C tr -cd '\n -~' < "$RUNNER_TEMP/graph/graph.md" 2>/dev/null \
+              | LC_ALL=C grep -E "$row" | head -n 20 || true)"
+            if [ ! -f conanfile.py ]; then
+              echo "Not resolved: there is no root \`conanfile.py\` to resolve."
+            elif [ -n "$rows" ]; then
+              echo "\`conan graph info\` per profile with Conan $CONAN_VERSION, against this tree only. Nothing was built."
+              echo
+              echo "| Profile | Result |"
+              echo "| --- | --- |"
+              echo "$rows"
+            else
+              echo "Not resolved: the graph job failed, see the run."
+            fi
+            echo
+            echo "---"
+            echo "Opened by the [Sync upstream]($RUN_URL) workflow, which replaces this branch every week while"
+            echo "the pull request is open. A commit by anyone else stops that until it is merged or closed."
+          } > "$RUNNER_TEMP/body.md"
+          cat "$RUNNER_TEMP/body.md" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -z "$pr" ]; then
+            draft=""
+            [ "$RESULT" = clean ] || draft=--draft
+            gh pr create --base master --head "$BRANCH" --title "$TITLE" --body-file "$RUNNER_TEMP/body.md" $draft
+          else
+            gh pr edit "$pr" --title "$TITLE" --body-file "$RUNNER_TEMP/body.md"
+            is_draft="$(gh pr view "$pr" --json isDraft --jq .isDraft)"
+            if [ "$RESULT" = clean ] && [ "$is_draft" = true ]; then
+              gh pr ready "$pr"
+            elif [ "$RESULT" != clean ] && [ "$is_draft" = false ]; then
+              gh pr ready "$pr" --undo
+            fi
+          fi
