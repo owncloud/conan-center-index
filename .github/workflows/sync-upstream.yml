@@ -190,7 +190,9 @@ jobs:
             # are taken from its report; errors stay inside a code span.
             # shellcheck disable=SC2016 # the backticks are literal
             row='^\| `[A-Za-z0-9_.-]+` \| (resolved, [0-9]+ dependencies|\*\*failed:\*\* see the job log|\*\*failed:\*\* `[^`|\\]{1,300}`) \|$'
-            rows="$(grep -E "$row" "$RUNNER_TEMP/graph/graph.md" 2>/dev/null | head -n 20 || true)"
+            # Printable ASCII only, so no control byte or lookalike character can reach the body.
+            rows="$(LC_ALL=C tr -cd '\n -~' < "$RUNNER_TEMP/graph/graph.md" 2>/dev/null \
+              | LC_ALL=C grep -E "$row" | head -n 20 || true)"
             if [ -n "$rows" ]; then
               echo "\`conan graph info\` per profile with Conan $CONAN_VERSION, against this tree only. Nothing was built."
               echo
