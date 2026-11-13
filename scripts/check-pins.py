@@ -4,8 +4,11 @@
 Usage: scripts/check-pins.py [REPO_ROOT]
 
 Scans the root conanfile.py and the conanfile.py of each recipe listed in
-.sync/owncloud-recipes for requires/tool_requires/build_requires/test_requires
-with a literal reference, and looks each one up in recipes/<name>/config.yml.
+.sync/owncloud-recipes for requires/tool_requires/build_requires/test_requires,
+as method calls or class attributes, and looks each literal reference up in
+recipes/<name>/config.yml. A reference built at runtime is listed as not
+checked. Pins inside upstream recipes are not scanned here; the sync
+workflow's conan graph info covers those.
 Upstream keeps only the newest patch release per minor, so a resync routinely
 removes a version that is pinned here; for those, the newest surviving version
 of the same major.minor is suggested. Plain version ranges (">=a <b") are
@@ -13,12 +16,14 @@ checked for at least one matching version; anything fancier is listed as not
 checked.
 
 Prints a markdown table. Exit codes: 0 all pins resolve, 1 at least one does
-not, 2 on bad arguments. Standard library only, so it runs without Conan.
+not, 2 on bad arguments, 3 if a file could not be read or parsed. Standard
+library only, so it runs without Conan.
 """
 
 import ast
 import re
 import sys
+import traceback
 from pathlib import Path
 
 REQUIRE_METHODS = {"requires", "tool_requires", "build_requires", "test_requires"}
@@ -35,20 +40,32 @@ def config_versions(recipes, name):
         return None
     versions = []
     in_versions = False
+    indent = None
     for line in config.read_text().splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
         if re.match(r"^versions:\s*$", line):
             in_versions = True
             continue
         if in_versions:
-            if line and not line[0].isspace():
+            if not line[0].isspace():
                 break
-            m = re.match(r"^  ['\"]?([^'\":\s]+)['\"]?:\s*$", line)
-            if m:
+            depth = len(line) - len(line.lstrip())
+            indent = depth if indent is None else indent
+            m = re.match(r"^\s+['\"]?([^'\":\s]+)['\"]?:\s*$", line)
+            if depth == indent and m:
                 versions.append(m.group(1))
     return versions
 
 
+def literal(node):
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    return None
+
+
 def pinned_refs(conanfile):
+    """Yields (reference or None, line) for each requirement; None if it is not a literal."""
     tree = ast.parse(conanfile.read_text(), filename=str(conanfile))
     for node in ast.walk(tree):
         if (
@@ -56,11 +73,17 @@ def pinned_refs(conanfile):
             and isinstance(node.func, ast.Attribute)
             and node.func.attr in REQUIRE_METHODS
             and node.args
-            and isinstance(node.args[0], ast.Constant)
-            and isinstance(node.args[0].value, str)
-            and "/" in node.args[0].value
         ):
-            yield node.args[0].value, node.lineno
+            yield literal(node.args[0]), node.lineno
+        elif isinstance(node, ast.ClassDef):
+            for stmt in node.body:
+                if (
+                    isinstance(stmt, ast.Assign)
+                    and any(isinstance(t, ast.Name) and t.id in REQUIRE_METHODS for t in stmt.targets)
+                ):
+                    values = stmt.value.elts if isinstance(stmt.value, (ast.Tuple, ast.List)) else [stmt.value]
+                    for value in values:
+                        yield literal(value), value.lineno
 
 
 def satisfies(version, expr):
@@ -121,6 +144,9 @@ def main(argv):
     for conanfile in conanfiles:
         where = conanfile.relative_to(root).as_posix()
         for ref, line in sorted(pinned_refs(conanfile), key=lambda r: r[1]):
+            if ref is None or "/" not in ref:
+                rows.append(f"| {f'`{ref}`' if ref else 'computed'} | `{where}:{line}` | not a literal reference, not checked |")
+                continue
             ok, status = check(ref, recipes)
             failed += not ok
             rows.append(f"| `{ref}` | `{where}:{line}` | {status} |")
@@ -132,4 +158,8 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    try:
+        sys.exit(main(sys.argv))
+    except Exception:  # noqa: BLE001 - a crash must not read as "pins pruned" (exit 1)
+        traceback.print_exc()
+        sys.exit(3)

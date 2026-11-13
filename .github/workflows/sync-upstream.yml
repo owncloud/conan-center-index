@@ -57,6 +57,7 @@ jobs:
       # is how the desktop builds consume it. Nothing is built.
       - name: Resolve the dependency graph
         if: steps.sync.outputs.result != 'current'
+        continue-on-error: true
         run: |
           pipx install "conan==$CONAN_VERSION"
           export CONAN_HOME="$RUNNER_TEMP/conan-home"
@@ -76,8 +77,9 @@ jobs:
                   -s build_type=Release --format=json > "$RUNNER_TEMP/graph.json" 2> "$RUNNER_TEMP/graph.err"; then
                 result="resolved, $(jq '.graph.nodes | length - 1' "$RUNNER_TEMP/graph.json") dependencies"
               else
-                result="**failed:** \`$(grep -m1 '^ERROR' "$RUNNER_TEMP/graph.err" | tr '|`' "/'" || echo 'see the job log')\`"
-                cat "$RUNNER_TEMP/graph.err"
+                error="$(grep -m1 '^ERROR' "$RUNNER_TEMP/graph.err" | tr '|`' "/'" || true)"
+                if [ -n "$error" ]; then result="**failed:** \`$error\`"; else result="**failed:** see the job log"; fi
+                cat "$RUNNER_TEMP/graph.err" >&2
               fi
               echo "| \`$(basename "$profile" .conanprofile)\` | $result |"
             done
@@ -94,6 +96,9 @@ jobs:
           bot="${APP_SLUG}[bot]"
           email="$(gh api "/users/$bot" --jq .id)+$bot@users.noreply.github.com"
 
+          # The branch head as seen now, so the push below cannot overwrite a commit
+          # that lands after the check.
+          lease="$(gh api "repos/$GITHUB_REPOSITORY/branches/$BRANCH" --jq .commit.sha 2>/dev/null || true)"
           pr="$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')"
           if [ -n "$pr" ]; then
             others="$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$pr/commits" --jq '.[].commit.author.email' \
@@ -108,7 +113,7 @@ jobs:
           git config user.email "$email"
           git commit -q -s -m "$TITLE" -m "Upstream: conan-io/conan-center-index@$(cat .sync/upstream-commit)"
           gh auth setup-git
-          git push -q --force origin "HEAD:refs/heads/$BRANCH"
+          git push -q --force-with-lease="refs/heads/$BRANCH:$lease" origin "HEAD:refs/heads/$BRANCH"
 
           {
             head -c 60000 "$RUNNER_TEMP/report.md"

@@ -20,9 +20,9 @@
 # Needs git and python3. UPSTREAM_URL overrides the upstream repository.
 #
 # Exit codes: 0 synced, 10 already up to date (nothing touched), 11 synced but
-# a patch conflicted or the delta check failed, 2 on bad arguments, a dirty
-# tree or an ownCloud recipe name that upstream now has too; git's code
-# otherwise.
+# a patch conflicted, the delta check failed or a pinned version is gone,
+# 2 on bad arguments, a dirty tree, an ownCloud recipe name that upstream now
+# has too, or a shared path upstream no longer has; git's code otherwise.
 
 set -euo pipefail
 
@@ -65,6 +65,12 @@ for name in "${owncloud[@]}"; do
     fi
 done
 
+# Checked before anything is deleted, so a failure cannot leave a gutted tree.
+for path in "${SHARED[@]}"; do
+    git cat-file -e "$new:$path" 2>/dev/null \
+        || die "upstream no longer has $path; update SHARED in this script"
+done
+
 aside="$(mktemp -d)"
 trap 'rm -rf "$aside"' EXIT
 for name in "${owncloud[@]}"; do
@@ -105,6 +111,7 @@ unexpected="$(comm -13 <(printf '%s\n' "$expected") <(printf '%s\n' "$actual") |
 pins_rc=0
 pins="$(python3 scripts/check-pins.py)" || pins_rc=$?
 [ "$pins_rc" -le 1 ] || die "scripts/check-pins.py failed"
+[ "$pins_rc" = 0 ] || needs_human=1
 
 changed="$(git diff --cached --name-only HEAD -- recipes | cut -d/ -f2 | sort -u | wc -l | tr -d ' ')"
 added="$(git diff --cached --name-only --diff-filter=A HEAD -- 'recipes/*/config.yml' | cut -d/ -f2)"
@@ -119,11 +126,16 @@ count() { if [ -z "$1" ]; then echo 0; else echo "$1" | wc -l | tr -d ' '; fi; }
     echo "Resyncs with [\`conan-io/conan-center-index@${new:0:9}\`]($UPSTREAM_WEB/commit/$new)."
     echo "Upstream changes since the last sync: [\`${old:0:9}...${new:0:9}\`]($UPSTREAM_WEB/compare/$old...$new)."
     echo
-    if [ "$needs_human" = 1 ] || [ "$pins_rc" = 1 ]; then
+    if [ "$needs_human" = 1 ]; then
         echo "## Needs attention"
         echo
-        [ "$needs_human" = 0 ] || echo "- The sync is incomplete: see the local patches and the delta below. Do not merge as is."
-        [ "$pins_rc" = 0 ] || echo "- Upstream removed versions that ownCloud pins. Bump them in a separate PR; see the pinned versions below."
+        if [ -n "$unexpected" ] || [[ "$patch_rows" == *conflict* ]]; then
+            echo "- The sync is incomplete: see the local patches and the delta below. Do not merge as is."
+        fi
+        if [ "$pins_rc" = 1 ]; then
+            echo "- Upstream removed versions that ownCloud pins (see the pinned versions below). Push the bumps to"
+            echo "  this branch, since the new versions may only arrive with this sync, then mark the PR ready."
+        fi
         echo
     fi
     echo "## Recipes"
