@@ -189,7 +189,7 @@ jobs:
             # The graph job ran upstream code, so only rows of the exact expected shape
             # are taken from its report; errors stay inside a code span.
             # shellcheck disable=SC2016 # the backticks are literal
-            row='^\| `[A-Za-z0-9_.-]+` \| (resolved, [0-9]+ dependencies|\*\*failed:\*\* see the job log|\*\*failed:\*\* `[^`]{1,300}`) \|$'
+            row='^\| `[A-Za-z0-9_.-]+` \| (resolved, [0-9]+ dependencies|\*\*failed:\*\* see the job log|\*\*failed:\*\* `[^`|\\]{1,300}`) \|$'
             rows="$(grep -E "$row" "$RUNNER_TEMP/graph/graph.md" 2>/dev/null | head -n 20 || true)"
             if [ -n "$rows" ]; then
               echo "\`conan graph info\` per profile with Conan $CONAN_VERSION, against this tree only. Nothing was built."
