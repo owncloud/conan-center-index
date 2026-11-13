@@ -30,6 +30,8 @@ jobs:
     outputs:
       result: ${{ steps.sync.outputs.result }}
       upstream: ${{ steps.sync.outputs.upstream }}
+      # The later jobs sync this same master commit, not whatever master is by then.
+      master: ${{ steps.sync.outputs.master }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -39,6 +41,7 @@ jobs:
       - name: Sync
         id: sync
         run: |
+          echo "master=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           rc=0
           scripts/sync-upstream.sh || rc=$?
           case "$rc" in
@@ -60,7 +63,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: master
+          ref: ${{ needs.sync.outputs.master }}
           persist-credentials: false
 
       - name: Resolve
@@ -101,6 +104,7 @@ jobs:
           name: graph-report
           path: ${{ runner.temp }}/graph.md
           retention-days: 7
+          overwrite: true
 
   pull-request:
     name: Open or update the pull request
@@ -114,7 +118,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: master
+          ref: ${{ needs.sync.outputs.master }}
           persist-credentials: false
 
       - name: Sync
@@ -160,7 +164,7 @@ jobs:
 
           # The branch head as seen now, so the push below cannot overwrite a commit
           # that lands after the check.
-          lease="$(gh api "repos/$GITHUB_REPOSITORY/branches/$BRANCH" --jq .commit.sha 2>/dev/null || true)"
+          lease="$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)"
           # Only a pull request from this repository's own branch, never a fork's.
           pr="$(gh api "repos/$GITHUB_REPOSITORY/pulls?head=$GITHUB_REPOSITORY_OWNER:$BRANCH&state=open" \
             --jq '.[0].number // empty')"
@@ -181,10 +185,20 @@ jobs:
 
           {
             head -c 50000 "$RUNNER_TEMP/report.md"
-            if [ -f "$RUNNER_TEMP/graph/graph.md" ]; then
-              head -c 10000 "$RUNNER_TEMP/graph/graph.md"
+            printf '\n## Dependency graph\n\n'
+            # The graph job ran upstream code, so only rows of the exact expected shape
+            # are taken from its report; errors stay inside a code span.
+            # shellcheck disable=SC2016 # the backticks are literal
+            row='^\| `[A-Za-z0-9_.-]+` \| (resolved, [0-9]+ dependencies|\*\*failed:\*\* see the job log|\*\*failed:\*\* `[^`]{1,300}`) \|$'
+            rows="$(grep -E "$row" "$RUNNER_TEMP/graph/graph.md" 2>/dev/null | head -n 20 || true)"
+            if [ -n "$rows" ]; then
+              echo "\`conan graph info\` per profile with Conan $CONAN_VERSION, against this tree only. Nothing was built."
+              echo
+              echo "| Profile | Result |"
+              echo "| --- | --- |"
+              echo "$rows"
             else
-              printf '\n## Dependency graph\n\nNot resolved: the graph job failed, see the run.\n'
+              echo "Not resolved: the graph job failed, see the run."
             fi
             echo
             echo "---"

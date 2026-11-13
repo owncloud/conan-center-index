@@ -77,10 +77,13 @@ def pinned_refs(conanfile):
             yield literal(node.args[0]), node.lineno
         elif isinstance(node, ast.ClassDef):
             for stmt in node.body:
-                if (
-                    isinstance(stmt, ast.Assign)
-                    and any(isinstance(t, ast.Name) and t.id in REQUIRE_METHODS for t in stmt.targets)
-                ):
+                if isinstance(stmt, ast.Assign):
+                    targets = stmt.targets
+                elif isinstance(stmt, ast.AnnAssign) and stmt.value is not None:
+                    targets = [stmt.target]
+                else:
+                    continue
+                if any(isinstance(t, ast.Name) and t.id in REQUIRE_METHODS for t in targets):
                     values = stmt.value.elts if isinstance(stmt.value, (ast.Tuple, ast.List)) else [stmt.value]
                     for value in values:
                         yield literal(value), value.lineno
