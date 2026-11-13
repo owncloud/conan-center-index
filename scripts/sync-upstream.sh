@@ -82,6 +82,7 @@ git checkout -q "$new" -- "${SHARED[@]}"
 cp -R "$aside/." recipes/
 
 needs_human=0
+conflicted=0
 patch_rows=""
 touched=""
 for patch in .sync/patches/*.patch; do
@@ -95,6 +96,7 @@ for patch in .sync/patches/*.patch; do
         patch_rows="$patch_rows| \`$patch\` | absorbed upstream, deleted |"$'\n'
     else
         needs_human=1
+        conflicted=1
         patch_rows="$patch_rows| \`$patch\` | **conflict, not applied** |"$'\n'
     fi
 done
@@ -129,7 +131,7 @@ count() { if [ -z "$1" ]; then echo 0; else echo "$1" | wc -l | tr -d ' '; fi; }
     if [ "$needs_human" = 1 ]; then
         echo "## Needs attention"
         echo
-        if [ -n "$unexpected" ] || [[ "$patch_rows" == *conflict* ]]; then
+        if [ -n "$unexpected" ] || [ "$conflicted" = 1 ]; then
             echo "- The sync is incomplete: see the local patches and the delta below. Do not merge as is."
         fi
         if [ "$pins_rc" = 1 ]; then
