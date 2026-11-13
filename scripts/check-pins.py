@@ -3,7 +3,7 @@
 
 Usage: scripts/check-pins.py [REPO_ROOT]
 
-Scans the root conanfile.py and the conanfile.py of each recipe listed in
+Scans the root conanfile.py, if there is one, and the conanfile.py of each recipe listed in
 .sync/owncloud-recipes for requires/tool_requires/build_requires/test_requires,
 as method calls or class attributes, and looks each literal reference up in
 recipes/<name>/config.yml. A reference built at runtime is listed as not
@@ -138,7 +138,7 @@ def main(argv):
     recipes = root / "recipes"
     owncloud = (root / ".sync" / "owncloud-recipes").read_text().split()
 
-    conanfiles = [root / "conanfile.py"]
+    conanfiles = [root / "conanfile.py"] if (root / "conanfile.py").is_file() else []
     for name in owncloud:
         conanfiles += sorted(p for p in (recipes / name).glob("*/conanfile.py"))
 

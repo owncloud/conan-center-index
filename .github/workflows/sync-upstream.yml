@@ -73,6 +73,8 @@ jobs:
           rc=0
           scripts/sync-upstream.sh "$UPSTREAM" || rc=$?
           [ "$rc" = 0 ] || [ "$rc" = 11 ] || exit "$rc"
+          # Without a root conanfile.py there is no graph to resolve here.
+          [ -f conanfile.py ] || exit 0
           pipx install "conan==$CONAN_VERSION"
           export CONAN_HOME="$RUNNER_TEMP/conan-home"
           conan config install .config/global.conf
@@ -193,7 +195,9 @@ jobs:
             # Printable ASCII only, so no control byte or lookalike character can reach the body.
             rows="$(LC_ALL=C tr -cd '\n -~' < "$RUNNER_TEMP/graph/graph.md" 2>/dev/null \
               | LC_ALL=C grep -E "$row" | head -n 20 || true)"
-            if [ -n "$rows" ]; then
+            if [ ! -f conanfile.py ]; then
+              echo "Not resolved: there is no root \`conanfile.py\` to resolve."
+            elif [ -n "$rows" ]; then
               echo "\`conan graph info\` per profile with Conan $CONAN_VERSION, against this tree only. Nothing was built."
               echo
               echo "| Profile | Result |"
