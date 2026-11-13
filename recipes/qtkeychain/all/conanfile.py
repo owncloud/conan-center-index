@@ -3,7 +3,7 @@ from conan.errors import ConanInvalidConfiguration
 from conan.tools.build import can_run, check_min_cppstd
 from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
 from conan.tools.files import copy, get, mkdir, replace_in_file, rmdir
-from conan.tools.system import package_manager
+from conan.tools.gnu import PkgConfigDeps
 import glob
 import os
 
@@ -52,9 +52,10 @@ class PackageConan(ConanFile):
         if self.settings.os == "Linux":
             self.requires("libsecret/0.21.7")
 
-    def system_requirements(self):
-        apt = package_manager.Apt(self)
-        apt.install(["libsecret-1-dev"], update=True, check=True)
+    def build_requirements(self):
+        # CMakeLists.txt finds libsecret with pkg_check_modules.
+        if self.settings.os == "Linux" and not self.conf.get("tools.gnu:pkg_config", check_type=str):
+            self.tool_requires("pkgconf/[>=2.2 <3]")
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
@@ -74,6 +75,10 @@ class PackageConan(ConanFile):
         # So make the whole target generate them, this overlinks uneeded stuff though
         deps.set_property("qt", "cmake_additional_variables_prefixes", ["Qt6Core"])
         deps.generate()
+        if self.settings.os == "Linux":
+            # libsecret-1.pc and its Requires for pkg_check_modules, from the Conan packages. They
+            # come first on PKG_CONFIG_PATH; pkg-config's system path still applies after them.
+            PkgConfigDeps(self).generate()
 
     def build(self):
         cmake = CMake(self)
