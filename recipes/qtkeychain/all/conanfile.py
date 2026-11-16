@@ -53,6 +53,7 @@ class PackageConan(ConanFile):
             self.requires("libsecret/0.21.7")
 
     def build_requirements(self):
+        self.tool_requires("cmake/[>=3.21 <4]")
         # CMakeLists.txt finds libsecret with pkg_check_modules.
         if self.settings.os == "Linux" and not self.conf.get("tools.gnu:pkg_config", check_type=str):
             self.tool_requires("pkgconf/[>=2.2 <3]")
