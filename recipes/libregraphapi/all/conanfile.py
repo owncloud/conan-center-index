@@ -38,7 +38,7 @@ class LibreGraphAPIConan(ConanFile):
         self.requires("qt/[>=6.7 <7]", transitive_headers=True, transitive_libs=True)
 
     def build_requirements(self):
-        self.tool_requires("cmake/[>=3.16 <4]")
+        self.tool_requires("cmake/[>=3.21 <4]")
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
