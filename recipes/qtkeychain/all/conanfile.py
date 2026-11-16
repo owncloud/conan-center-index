@@ -1,5 +1,6 @@
 from conan import ConanFile
 from conan.errors import ConanInvalidConfiguration
+from conan.tools.apple import is_apple_os
 from conan.tools.build import can_run, check_min_cppstd
 from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
 from conan.tools.files import copy, get, mkdir, replace_in_file, rmdir
@@ -64,6 +65,7 @@ class PackageConan(ConanFile):
         # Link the Qt module targets, not the <Module>_LIBRARIES variables, which CMakeDeps does not
         # make per module. The old workaround filled Qt6Core_LIBRARIES with the whole qt package, every
         # Qt module and its X libraries; Qt6DBus_LIBRARIES stayed empty, DBus only came with the rest.
+        # package_info() now has to name qt::qtDBus wherever CMakeLists.txt links it (Linux, FreeBSD).
         replace_in_file(self, cmakelists, "set(QTCORE_LIBRARIES ${Qt6Core_LIBRARIES})",
                         "set(QTCORE_LIBRARIES Qt6::Core)")
         replace_in_file(self, cmakelists, "set(QTDBUS_LIBRARIES ${Qt6DBus_LIBRARIES})",
@@ -80,7 +82,7 @@ class PackageConan(ConanFile):
         # qttools is not built by default in qt package, so we would need to add a check in validate()
         tc.cache_variables["BUILD_TRANSLATIONS"] = False
         # Its own shared dependencies are found next to it, as when deployed together.
-        if self.settings.os == "Linux":
+        if self.settings.os in ("Linux", "FreeBSD"):
             tc.cache_variables["CMAKE_INSTALL_RPATH"] = "$ORIGIN"
         elif self.settings.os == "Macos":
             tc.cache_variables["CMAKE_INSTALL_RPATH"] = "@loader_path"
@@ -120,10 +122,18 @@ class PackageConan(ConanFile):
 
     def package_info(self):
         self.cpp_info.libs = ["qt6keychain"]
-        # Only what it links, so that consumers do not link every Qt module through it.
+        # Only what it links, so that consumers do not link every Qt module through it: QtCore, and
+        # QtDBus where CMakeLists.txt links it (every UNIX but Apple, Android and Haiku; validate()
+        # allows Linux and FreeBSD), libsecret where requirements() adds it, and its system libraries.
         self.cpp_info.requires = ["qt::qtCore"]
+        if self.settings.os in ("Linux", "FreeBSD"):
+            self.cpp_info.requires.append("qt::qtDBus")
         if self.settings.os == "Linux":
-            self.cpp_info.requires += ["qt::qtDBus", "libsecret::libsecret"]
+            self.cpp_info.requires.append("libsecret::libsecret")
+        if self.settings.os == "Windows":
+            self.cpp_info.system_libs = ["crypt32"]
+        if is_apple_os(self):
+            self.cpp_info.frameworks = ["Foundation", "Security"]
         if self.options.with_translations:
             # qtkeychain_<lang>.qm
             self.cpp_info.resdirs = ["res"]
