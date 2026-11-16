@@ -64,5 +64,8 @@ class LibreGraphAPIConan(ConanFile):
 
     def package_info(self):
         self.cpp_info.libs = ["LibreGraphAPI"]
+        # The upstream target exports both, and consumers include the headers unprefixed
+        self.cpp_info.includedirs = ["include", os.path.join("include", "OpenAPI", "LibreGraphAPI")]
+        self.cpp_info.requires = ["qt::qtCore", "qt::qtGui", "qt::qtNetwork"]
         self.cpp_info.set_property("cmake_file_name", "LibreGraphAPI")
         self.cpp_info.set_property("cmake_target_name", "OpenAPI::LibreGraphAPI")
