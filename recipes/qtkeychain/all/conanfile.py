@@ -81,11 +81,13 @@ class PackageConan(ConanFile):
         # Settings this to True would need LinguistTools, which requires qttools, gui and widgets
         # qttools is not built by default in qt package, so we would need to add a check in validate()
         tc.cache_variables["BUILD_TRANSLATIONS"] = False
-        # Its own shared dependencies are found next to it, as when deployed together.
+        # Its own shared dependencies are found next to it, as when deployed together. In
+        # tc.variables, which go into conan_toolchain.cmake: cache_variables go onto CMake's command
+        # line through a shell, which would expand $ORIGIN to nothing.
         if self.settings.os in ("Linux", "FreeBSD"):
-            tc.cache_variables["CMAKE_INSTALL_RPATH"] = "$ORIGIN"
+            tc.variables["CMAKE_INSTALL_RPATH"] = "$ORIGIN"
         elif self.settings.os == "Macos":
-            tc.cache_variables["CMAKE_INSTALL_RPATH"] = "@loader_path"
+            tc.variables["CMAKE_INSTALL_RPATH"] = "@loader_path"
         tc.generate()
 
         CMakeDeps(self).generate()
@@ -121,7 +123,11 @@ class PackageConan(ConanFile):
              os.path.join(self.package_folder, "res", "translations"))
 
     def package_info(self):
-        self.cpp_info.libs = ["qt6keychain"]
+        # Upstream adds DEBUG_POSTFIX "d" on Windows.
+        lib = "qt6keychain"
+        if self.settings.os == "Windows" and self.settings.build_type == "Debug":
+            lib += "d"
+        self.cpp_info.libs = [lib]
         # Only what it links, so that consumers do not link every Qt module through it: QtCore, and
         # QtDBus where CMakeLists.txt links it (every UNIX but Apple, Android and Haiku; validate()
         # allows Linux and FreeBSD), libsecret where requirements() adds it, and its system libraries.
