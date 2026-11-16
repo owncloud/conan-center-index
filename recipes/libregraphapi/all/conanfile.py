@@ -31,11 +31,19 @@ class LibreGraphAPIConan(ConanFile):
     def layout(self):
         cmake_layout(self)
 
+    def config_options(self):
+        if self.settings.os == "Windows":
+            del self.options.fPIC
+            self.options.shared = False
+
     def validate(self):
         check_min_cppstd(self, 17)
+        if self.settings.os == "Windows" and self.options.shared:
+            raise ConanInvalidConfiguration(f"{self.ref} only builds static on Windows (upstream forces BUILD_SHARED_LIBS OFF)")
 
     def requirements(self):
         self.requires("qt/[>=6.7 <7]", transitive_headers=True, transitive_libs=True)
+        self.requires("zlib/[>=1.2.11 <2]")
 
     def build_requirements(self):
         self.tool_requires("cmake/[>=3.21 <4]")
@@ -60,8 +68,13 @@ class LibreGraphAPIConan(ConanFile):
         copy(self, "LICENSE", self.source_folder, os.path.join(self.package_folder, "licenses"))
         cmake = CMake(self)
         cmake.install()
+        rmdir(self, os.path.join(self.package_folder, "lib", "cmake"))
 
     def package_info(self):
         self.cpp_info.libs = ["LibreGraphAPI"]
+        # Upstream exports include/OpenAPI/LibreGraphAPI, which consumers use unprefixed;
+        # include is kept for the prefixed spelling
+        self.cpp_info.includedirs = ["include", os.path.join("include", "OpenAPI", "LibreGraphAPI")]
+        self.cpp_info.requires = ["qt::qtCore", "qt::qtGui", "qt::qtNetwork", "zlib::zlib"]
         self.cpp_info.set_property("cmake_file_name", "LibreGraphAPI")
         self.cpp_info.set_property("cmake_target_name", "OpenAPI::LibreGraphAPI")
