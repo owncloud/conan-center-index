@@ -5,13 +5,12 @@ from conan.tools.cmake import CMake, cmake_layout
 from conan.tools.build import can_run
 
 
-class qtkeychainTestConan(ConanFile):
+class LibreGraphAPITestConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
     generators = "CMakeDeps", "CMakeToolchain"
 
     def requirements(self):
         self.requires(self.tested_reference_str)
-        self.requires("qt/[>=6.7 <7]")
 
     def build(self):
         cmake = CMake(self)
