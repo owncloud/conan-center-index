@@ -13,6 +13,9 @@ class qtkeychainTestConan(ConanFile):
         self.requires(self.tested_reference_str)
         self.requires("qt/[>=6.7 <7]")
 
+    def build_requirements(self):
+        self.tool_requires("cmake/[>=3.21 <4]")
+
     def build(self):
         cmake = CMake(self)
         cmake.configure()
