@@ -59,8 +59,17 @@ class PackageConan(ConanFile):
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
-        replace_in_file(self, os.path.join(self.source_folder, "CMakeLists.txt"),
-                        "SET(CMAKE_CXX_STANDARD 11)", "")
+        cmakelists = os.path.join(self.source_folder, "CMakeLists.txt")
+        replace_in_file(self, cmakelists, "SET(CMAKE_CXX_STANDARD 11)", "")
+        # Link the Qt module targets, not the <Module>_LIBRARIES variables CMakeDeps does not make per
+        # module: those had to be the whole qt package, every Qt module and its X libraries.
+        replace_in_file(self, cmakelists, "set(QTCORE_LIBRARIES ${Qt6Core_LIBRARIES})",
+                        "set(QTCORE_LIBRARIES Qt6::Core)")
+        replace_in_file(self, cmakelists, "set(QTDBUS_LIBRARIES ${Qt6DBus_LIBRARIES})",
+                        "set(QTDBUS_LIBRARIES Qt6::DBus)")
+        # No install RPATH made of the link directories: they are the build machine's Conan cache.
+        replace_in_file(self, os.path.join(self.source_folder, "qtkeychain", "CMakeLists.txt"),
+                        "INSTALL_RPATH_USE_LINK_PATH TRUE", "INSTALL_RPATH_USE_LINK_PATH FALSE")
 
     def generate(self):
         tc = CMakeToolchain(self)
@@ -70,11 +79,7 @@ class PackageConan(ConanFile):
         tc.cache_variables["BUILD_TRANSLATIONS"] = False
         tc.generate()
 
-        deps = CMakeDeps(self)
-        # CMakeLists expects us to have created Qt6Core specific variables, but we don't have them
-        # So make the whole target generate them, this overlinks uneeded stuff though
-        deps.set_property("qt", "cmake_additional_variables_prefixes", ["Qt6Core"])
-        deps.generate()
+        CMakeDeps(self).generate()
         if self.settings.os == "Linux":
             # libsecret-1.pc and its Requires for pkg_check_modules, from the Conan packages. They
             # come first on PKG_CONFIG_PATH; pkg-config's system path still applies after them.
