@@ -61,13 +61,15 @@ class PackageConan(ConanFile):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
         cmakelists = os.path.join(self.source_folder, "CMakeLists.txt")
         replace_in_file(self, cmakelists, "SET(CMAKE_CXX_STANDARD 11)", "")
-        # Link the Qt module targets, not the <Module>_LIBRARIES variables CMakeDeps does not make per
-        # module: those had to be the whole qt package, every Qt module and its X libraries.
+        # Link the Qt module targets, not the <Module>_LIBRARIES variables, which CMakeDeps does not
+        # make per module. The old workaround filled Qt6Core_LIBRARIES with the whole qt package, every
+        # Qt module and its X libraries; Qt6DBus_LIBRARIES stayed empty, DBus only came with the rest.
         replace_in_file(self, cmakelists, "set(QTCORE_LIBRARIES ${Qt6Core_LIBRARIES})",
                         "set(QTCORE_LIBRARIES Qt6::Core)")
         replace_in_file(self, cmakelists, "set(QTDBUS_LIBRARIES ${Qt6DBus_LIBRARIES})",
                         "set(QTDBUS_LIBRARIES Qt6::DBus)")
-        # No install RPATH made of the link directories: they are the build machine's Conan cache.
+        # No install RPATH made of the link directories, which are the build machine's Conan cache;
+        # generate() sets a relocatable one instead.
         replace_in_file(self, os.path.join(self.source_folder, "qtkeychain", "CMakeLists.txt"),
                         "INSTALL_RPATH_USE_LINK_PATH TRUE", "INSTALL_RPATH_USE_LINK_PATH FALSE")
 
@@ -77,6 +79,11 @@ class PackageConan(ConanFile):
         # Settings this to True would need LinguistTools, which requires qttools, gui and widgets
         # qttools is not built by default in qt package, so we would need to add a check in validate()
         tc.cache_variables["BUILD_TRANSLATIONS"] = False
+        # Its own shared dependencies are found next to it, as when deployed together.
+        if self.settings.os == "Linux":
+            tc.cache_variables["CMAKE_INSTALL_RPATH"] = "$ORIGIN"
+        elif self.settings.os == "Macos":
+            tc.cache_variables["CMAKE_INSTALL_RPATH"] = "@loader_path"
         tc.generate()
 
         CMakeDeps(self).generate()
@@ -113,6 +120,10 @@ class PackageConan(ConanFile):
 
     def package_info(self):
         self.cpp_info.libs = ["qt6keychain"]
+        # Only what it links, so that consumers do not link every Qt module through it.
+        self.cpp_info.requires = ["qt::qtCore"]
+        if self.settings.os == "Linux":
+            self.cpp_info.requires += ["qt::qtDBus", "libsecret::libsecret"]
         if self.options.with_translations:
             # qtkeychain_<lang>.qm
             self.cpp_info.resdirs = ["res"]
