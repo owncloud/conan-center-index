@@ -37,7 +37,9 @@ class sparkleRecipe(ConanFile):
 
     def build(self):
         # -derivedDataPath: without it the product lands in ~/Library/Developer/Xcode/DerivedData,
-        # outside the build folder. Signing is the job of whoever bundles the framework.
+        # outside the build folder. Signing stays at Sparkle's ad-hoc default (CODE_SIGN_IDENTITY = -),
+        # which needs no certificate and keeps the nested helpers signed until whoever bundles the
+        # framework re-signs it with a Developer ID.
         args = [
             "-project Sparkle.xcodeproj",
             "-scheme Sparkle",
@@ -45,7 +47,6 @@ class sparkleRecipe(ConanFile):
             f"-derivedDataPath {shlex.quote(os.path.join(self.build_folder, 'dd'))}",
             f"ARCHS={to_apple_arch(self)}",
             "ONLY_ACTIVE_ARCH=NO",
-            "CODE_SIGNING_ALLOWED=NO",
             # A dSYM for Debug too, whose default (dwarf) leaves the debug info in the object files.
             "DEBUG_INFORMATION_FORMAT=dwarf-with-dsym",
         ]
