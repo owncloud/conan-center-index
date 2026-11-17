@@ -80,14 +80,8 @@ jobs:
           conan config install .config/global.conf
           conan remote remove conancenter
           conan remote add local . --type=local-recipes-index
+          # Table rows only; the pull-request job adds the heading.
           {
-            echo
-            echo "## Dependency graph"
-            echo
-            echo "\`conan graph info\` per profile with Conan $CONAN_VERSION, against this tree only. Nothing was built."
-            echo
-            echo "| Profile | Result |"
-            echo "| --- | --- |"
             for profile in .github/profiles/*.conanprofile; do
               # The build profile is the one the desktop builds use, so that tool_requires
               # gated on settings_build (msys2, nasm, ...) are resolved for each OS: the
@@ -101,7 +95,9 @@ jobs:
                   -s build_type=Release --format=json > "$RUNNER_TEMP/graph.json" 2> "$RUNNER_TEMP/graph.err"; then
                 result="resolved, $(jq '.graph.nodes | length - 1' "$RUNNER_TEMP/graph.json") dependencies"
               else
-                error="$(grep -m1 '^ERROR' "$RUNNER_TEMP/graph.err" | tr '|`' "/'" || true)"
+                # Within what the pull-request job accepts: no pipe, backtick or
+                # backslash (Windows paths), at most 300 characters.
+                error="$(grep -m1 '^ERROR' "$RUNNER_TEMP/graph.err" | tr '|`\\' "/'/" | cut -c1-300 || true)"
                 if [ -n "$error" ]; then result="**failed:** \`$error\`"; else result="**failed:** see the job log"; fi
                 cat "$RUNNER_TEMP/graph.err" >&2
               fi
@@ -196,23 +192,34 @@ jobs:
           {
             head -c 50000 "$RUNNER_TEMP/report.md"
             printf '\n## Dependency graph\n\n'
-            # The graph job ran upstream code, so only rows of the exact expected shape
-            # are taken from its report; errors stay inside a code span.
-            # shellcheck disable=SC2016 # the backticks are literal
-            row='^\| `[A-Za-z0-9_.-]+` \| (resolved, [0-9]+ dependencies|\*\*failed:\*\* see the job log|\*\*failed:\*\* `[^`|\\]{1,300}`) \|$'
-            # Printable ASCII only, so no control byte or lookalike character can reach the body.
-            rows="$(LC_ALL=C tr -cd '\n -~' < "$RUNNER_TEMP/graph/graph.md" 2>/dev/null \
-              | LC_ALL=C grep -E "$row" | head -n 20 || true)"
             if [ ! -f conanfile.py ]; then
               echo "Not resolved: there is no root \`conanfile.py\` to resolve."
-            elif [ -n "$rows" ]; then
+            elif [ ! -f "$RUNNER_TEMP/graph/graph.md" ]; then
+              echo "Not resolved: the graph job failed, see the run."
+            else
               echo "\`conan graph info\` per profile with Conan $CONAN_VERSION, against this tree only. Nothing was built."
               echo
               echo "| Profile | Result |"
               echo "| --- | --- |"
-              echo "$rows"
-            else
-              echo "Not resolved: the graph job failed, see the run."
+              # The graph job ran upstream code, so only rows of the exact expected shape
+              # are taken from its report; errors stay inside a code span. Printable ASCII
+              # only, so no control byte or lookalike character can reach the body.
+              # shellcheck disable=SC2016 # the backticks are literal
+              row='^\| `[A-Za-z0-9_.-]+` \| (resolved, [0-9]+ dependencies|\*\*failed:\*\* see the job log|\*\*failed:\*\* `[^`|\\]{1,300}`) \|$'
+              rows="$(LC_ALL=C tr -cd '\n -~' < "$RUNNER_TEMP/graph/graph.md")"
+              # One row per profile of this checkout, so a row that is missing or does not
+              # match still shows up as a failure instead of disappearing.
+              for profile in .github/profiles/*.conanprofile; do
+                name="$(basename "$profile" .conanprofile)"
+                line="$(printf '%s\n' "$rows" | awk -v p="| \`$name\` | " 'index($0, p) == 1 { print; exit }')"
+                if [ -z "$line" ]; then
+                  echo "| \`$name\` | **not reported:** see the job log |"
+                elif printf '%s\n' "$line" | LC_ALL=C grep -qE "$row"; then
+                  echo "$line"
+                else
+                  echo "| \`$name\` | **failed:** see the job log |"
+                fi
+              done
             fi
             echo
             echo "---"
