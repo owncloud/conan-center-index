@@ -113,14 +113,13 @@ reviews and squash-merges it. If anyone else pushes a commit to that branch, the
 stops updating it until the PR is merged, which deletes the branch. To let the workflow
 start over instead, delete the branch.
 
-The workflow authenticates as a GitHub App, because a pull request opened with the default
-`GITHUB_TOKEN` would not trigger the required checks. The app needs read and write access to
-contents and pull requests on this repository. Its client ID and private key go in the
-secrets `SYNC_APP_CLIENT_ID` and `SYNC_APP_PRIVATE_KEY` of the `sync-upstream` environment,
-whose deployment branches should be limited to `master`. Only the job that pushes and opens
-the PR can read them. The repository variable `SYNC_APP_SLUG` holds the app's slug, so the
-first job can tell the app's commits on the branch from anyone else's without the secrets.
-The PR itself is opened with
+The workflow authenticates as the `owncloud-conan-bot` GitHub App, which is installed on
+this repository with read and write access to contents and pull requests, because a pull
+request opened with the default `GITHUB_TOKEN` would not trigger the required checks. The
+app's slug and client ID are in the workflow. Its private key goes in the secret
+`CONAN_APP_PRIVATE_KEY`, best of the `sync-upstream` environment with its deployment branches
+limited to `master`, so that only the job that pushes and opens the PR can read it. The PR
+itself is opened with
 [`peter-evans/create-pull-request`](https://github.com/peter-evans/create-pull-request), as
 in `owncloud/reusable-workflows`. It pushes with git rather than signing through the API,
 whose rate limit a large sync would exceed; the squash merge onto `master` is signed.

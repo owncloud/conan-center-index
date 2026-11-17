@@ -16,6 +16,10 @@ env:
   BRANCH: chore/sync-upstream
   TITLE: 'chore: sync recipes with upstream conan-center-index'
   UPSTREAM_URL: https://github.com/conan-io/conan-center-index.git
+  # The owncloud-conan-bot GitHub App (contents and pull requests write). Its slug
+  # and client ID are public; only its private key is a secret.
+  APP_SLUG: owncloud-conan-bot
+  APP_CLIENT_ID: Iv23liMkHVRgV0tcaYoC
 
 # Only git and our own scripts run here, never upstream recipe code, and the
 # app token exists only in the last job.
@@ -44,9 +48,7 @@ jobs:
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
-          SYNC_APP_SLUG: ${{ vars.SYNC_APP_SLUG }}
         run: |
-          [ -n "$SYNC_APP_SLUG" ] || { echo "::error::set the repository variable SYNC_APP_SLUG"; exit 1; }
           master="$(git rev-parse HEAD)"
           echo "master=$master" >> "$GITHUB_OUTPUT"
           upstream="$(git ls-remote "$UPSTREAM_URL" refs/heads/master | cut -f1)"
@@ -67,7 +69,7 @@ jobs:
             # open; the branch is deleted on merge. A failed call fails the job rather
             # than reading as "no one else".
             others="$(gh api "repos/$GITHUB_REPOSITORY/compare/$master...$lease" \
-              | jq -r --arg bot "${SYNC_APP_SLUG}[bot]" \
+              | jq -r --arg bot "${APP_SLUG}[bot]" \
                 '.commits[] | select(.author.login != $bot or .committer.login != $bot) | .sha')"
             if [ -n "$others" ]; then
               echo "::warning::$BRANCH has commits by someone else; leaving it alone until it is merged or deleted"
@@ -130,8 +132,8 @@ jobs:
         id: app
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
-          client-id: ${{ secrets.SYNC_APP_CLIENT_ID }}
-          private-key: ${{ secrets.SYNC_APP_PRIVATE_KEY }}
+          client-id: ${{ env.APP_CLIENT_ID }}
+          private-key: ${{ secrets.CONAN_APP_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
 
@@ -139,14 +141,13 @@ jobs:
         id: check
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
-          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+          TOKEN_APP_SLUG: ${{ steps.app.outputs.app-slug }}
           LEASE: ${{ needs.sync.outputs.lease }}
           MASTER: ${{ needs.sync.outputs.master }}
-          SYNC_APP_SLUG: ${{ vars.SYNC_APP_SLUG }}
         run: |
           # The sync job told the app's commits from others' by this name.
-          [ "$APP_SLUG" = "$SYNC_APP_SLUG" ] \
-            || { echo "::error::SYNC_APP_SLUG is $SYNC_APP_SLUG, but the app is $APP_SLUG"; exit 1; }
+          [ "$TOKEN_APP_SLUG" = "$APP_SLUG" ] \
+            || { echo "::error::the token is for $TOKEN_APP_SLUG, not $APP_SLUG"; exit 1; }
           # The action below force-pushes without a lease, and puts the sync onto
           # master as it is then, so make sure neither has moved since the sync job.
           head="$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)"
