@@ -35,6 +35,9 @@
 # has; git's code otherwise.
 
 set -euo pipefail
+# Byte order for globs and sort, so the sync applies patches in the same order
+# as --verify, which takes them from git ls-tree.
+export LC_ALL=C
 
 die() { echo "sync-upstream: error: $*" >&2; exit 2; }
 
@@ -155,7 +158,8 @@ for name in ${owncloud[@]+"${owncloud[@]}"}; do
     cp -R "recipes/$name" "$aside/"
 done
 
-rm -rf recipes docs assets
+# git checkout never deletes, so whatever upstream removed must go first.
+rm -rf "${SHARED[@]}"
 git checkout -q "$new" -- "${SHARED[@]}"
 cp -R "$aside/." recipes/
 
@@ -174,17 +178,16 @@ for patch in .sync/patches/*.patch; do
         needs_human=1
         conflicted=1
         # If upstream deleted or moved every file the patch modifies, it is
-        # obsolete rather than in conflict; files it creates do not count.
-        created="$(git apply --summary "$patch" | sed -n 's/^ create mode [0-9]* //p')"
+        # obsolete rather than in conflict. The pre-images are the "--- a/" and
+        # "rename from"/"copy from" paths; files it creates have none.
         targets=0
         present=0
         while IFS= read -r path; do
-            if printf '%s\n' "$created" | grep -qxF -- "$path"; then continue; fi
             targets=$((targets + 1))
             if [ -e "$path" ]; then present=$((present + 1)); fi
-        done < <(git apply --numstat "$patch" | cut -f3)
+        done < <(sed -n -e 's|^--- a/||p' -e 's/^rename from //p' -e 's/^copy from //p' "$patch" | sort -u)
         if [ "$targets" -gt 0 ] && [ "$present" = 0 ]; then
-            patch_rows="$patch_rows| \`$patch\` | **target gone upstream, not applied:** delete or retarget it by a PR on master |"$'\n'
+            patch_rows="$patch_rows| \`$patch\` | **target gone upstream, not applied:** retarget it on this branch, or drop it by a PR on master that reverse-applies and deletes it |"$'\n'
         else
             patch_rows="$patch_rows| \`$patch\` | **conflict, not applied** |"$'\n'
         fi
