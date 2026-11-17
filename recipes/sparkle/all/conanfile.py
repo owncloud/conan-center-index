@@ -31,7 +31,7 @@ class sparkleRecipe(ConanFile):
         return str(self.settings.arch).split("|")
 
     # Xcode's names for the arches validate() accepts; to_apple_arch() only maps settings.arch
-    # as a whole, which is None for a universal arch.
+    # as a whole and has no mapping for a universal arch.
     _xcode_archs = {"armv8": "arm64", "x86_64": "x86_64"}
 
     def validate(self):
