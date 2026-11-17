@@ -2,9 +2,12 @@
 # Resyncs the upstream-owned part of the tree with conan-io/conan-center-index.
 #
 # Usage: scripts/sync-upstream.sh [--report FILE] [REF]
+#        scripts/sync-upstream.sh --verify
 #
 #   REF            upstream branch or full commit to sync to, default master
 #   --report FILE  write a markdown summary, the sync PR's body, to FILE
+#   --verify       check that HEAD's shared tree is exactly what a sync to
+#                  .sync/upstream-commit produces, and touch nothing
 #
 # Run from the repository root on a clean tree, without ignored files in the
 # shared paths outside the ownCloud recipes. It replaces recipes/ docs/
@@ -15,14 +18,18 @@
 #
 # A patch that upstream has absorbed (it reverse-applies cleanly) is deleted.
 # A patch that applies neither way is left in place and reported, as obsolete
-# if upstream removed the files it modifies. Afterwards the difference to
-# upstream must be exactly the ownCloud recipes plus the files the applied
-# patches touch.
+# if upstream removed the files it modifies.
+#
+# --verify rebuilds the shared tree from upstream, HEAD's ownCloud recipes and
+# HEAD's patches in a scratch index and compares it with HEAD, so an in-place
+# edit of an upstream file, or a patch committed without its result, fails.
+# The "Upstream tree" check runs it on every pull request.
 #
 # Needs git and python3. UPSTREAM_URL overrides the upstream repository.
 #
-# Exit codes: 0 synced, 10 already up to date (nothing touched), 11 synced but
-# a patch conflicted, the delta check failed or a pinned version is gone,
+# Exit codes: 0 synced or verified, 1 --verify found a difference, 10 already
+# up to date (nothing touched), 11 synced but a patch did not apply or a
+# pinned version is gone,
 # 2 on bad arguments, a dirty tree or ignored files in the way, an ownCloud
 # recipe name that upstream now has too, or a shared path upstream no longer
 # has; git's code otherwise.
@@ -37,24 +44,79 @@ SHARED=(recipes docs assets .editorconfig .gitattributes LICENSE)
 
 report=/dev/null
 ref=master
+verify=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --report) [ $# -ge 2 ] || die "--report needs a file"; report="$2"; shift 2 ;;
+        --verify) verify=1; shift ;;
         -*) die "unknown option $1" ;;
         *) ref="$1"; shift ;;
     esac
 done
 
+# Reads .sync/owncloud-recipes from stdin into owncloud: one name per line or
+# space-separated, "#" starts a comment.
+read_owncloud() {
+    owncloud=()
+    while IFS= read -r name; do
+        owncloud+=("$name")
+    done < <(sed 's/#.*//' | tr -s '[:blank:]' '\n' | grep -v '^$' || true)
+}
+
+verify() {
+    local up path mode obj name patch differ
+    up="$(git show HEAD:.sync/upstream-commit | tr -d '[:space:]')"
+    read_owncloud < <(git show HEAD:.sync/owncloud-recipes)
+    git fetch -q --depth=1 --no-tags "$UPSTREAM_URL" "$up"
+
+    # A scratch index, so neither the real index nor the working tree changes.
+    scratch="$(mktemp -d)"
+    trap 'rm -rf "$scratch"' EXIT
+    export GIT_INDEX_FILE="$scratch/index"
+    for path in "${SHARED[@]}"; do
+        case "$(git cat-file -t "$up:$path" 2>/dev/null || true)" in
+            tree) git read-tree --prefix="$path/" "$up:$path" ;;
+            blob)
+                read -r mode _ obj _ < <(git ls-tree "$up" -- "$path")
+                git update-index --add --cacheinfo "$mode,$obj,$path" ;;
+            *) die "upstream $up has no $path" ;;
+        esac
+    done
+    for name in ${owncloud[@]+"${owncloud[@]}"}; do
+        git cat-file -e "HEAD:recipes/$name" 2>/dev/null \
+            || die "recipes/$name is listed in .sync/owncloud-recipes but missing"
+        if git cat-file -e "$up:recipes/$name" 2>/dev/null; then
+            die "upstream has a recipe named $name too; rename ours or drop it from .sync/owncloud-recipes"
+        fi
+        git read-tree --prefix="recipes/$name/" "HEAD:recipes/$name"
+    done
+    while IFS= read -r patch; do
+        case "$patch" in *.patch) ;; *) continue ;; esac
+        git show "HEAD:$patch" | git apply --cached - \
+            || die "$patch does not apply to upstream $up; fix it, or resync"
+    done < <(git ls-tree --name-only HEAD -- .sync/patches/)
+
+    differ="$(git diff --name-status "$(git write-tree)" HEAD -- "${SHARED[@]}")"
+    if [ -n "$differ" ]; then
+        echo "sync-upstream: these upstream files differ from conan-io/conan-center-index@${up:0:9}" >&2
+        echo "with the ownCloud recipes and .sync/patches/ applied. Fix them upstream, or carry" >&2
+        echo "the change as a patch in .sync/patches/ (see AGENTS.md):" >&2
+        printf '%s\n' "$differ" >&2
+        exit 1
+    fi
+    echo "sync-upstream: the shared tree matches conan-io/conan-center-index@${up:0:9}"
+}
+
 [ -f .sync/upstream-commit ] && [ -f .sync/owncloud-recipes ] \
     || die "run from the repository root (no .sync/ here)"
+if [ "$verify" = 1 ]; then
+    verify
+    exit 0
+fi
 [ -z "$(git status --porcelain)" ] || die "the working tree is not clean"
 
 old="$(tr -d '[:space:]' < .sync/upstream-commit)"
-# One name per line or space-separated; "#" starts a comment.
-owncloud=()
-while IFS= read -r name; do
-    owncloud+=("$name")
-done < <(sed 's/#.*//' .sync/owncloud-recipes | tr -s '[:blank:]' '\n' | grep -v '^$' || true)
+read_owncloud < .sync/owncloud-recipes
 
 # git status --porcelain skips ignored files, but the shared tree is deleted
 # wholesale below, so build output such as test_package/build/ would go too.
@@ -100,12 +162,10 @@ cp -R "$aside/." recipes/
 needs_human=0
 conflicted=0
 patch_rows=""
-touched=""
 for patch in .sync/patches/*.patch; do
     [ -e "$patch" ] || continue
     if git apply --check "$patch" 2>/dev/null; then
         git apply "$patch"
-        touched="$touched$(git apply --numstat "$patch" | cut -f3)"$'\n'
         patch_rows="$patch_rows| \`$patch\` | applied |"$'\n'
     elif git apply --reverse --check "$patch" 2>/dev/null; then
         git rm -q "$patch"
@@ -134,12 +194,6 @@ done
 echo "$new" > .sync/upstream-commit
 git add -A
 
-expected="$( { for name in ${owncloud[@]+"${owncloud[@]}"}; do git ls-files "recipes/$name"; done
-              printf '%s' "$touched"; } | grep -v '^$' | sort -u)"
-actual="$(git diff --cached --name-only "$new" -- "${SHARED[@]}" | sort -u)"
-unexpected="$(comm -13 <(printf '%s\n' "$expected") <(printf '%s\n' "$actual") | grep -v '^$' || true)"
-[ -z "$unexpected" ] || needs_human=1
-
 pins_rc=0
 pins="$(python3 scripts/check-pins.py)" || pins_rc=$?
 [ "$pins_rc" -le 1 ] || die "scripts/check-pins.py failed"
@@ -161,8 +215,8 @@ count() { if [ -z "$1" ]; then echo 0; else echo "$1" | wc -l | tr -d ' '; fi; }
     if [ "$needs_human" = 1 ]; then
         echo "## Needs attention"
         echo
-        if [ -n "$unexpected" ] || [ "$conflicted" = 1 ]; then
-            echo "- The sync is incomplete: see the local patches and the delta below. Do not merge as is."
+        if [ "$conflicted" = 1 ]; then
+            echo "- The sync is incomplete: see the local patches below. Do not merge as is."
         fi
         if [ "$pins_rc" = 1 ]; then
             echo "- Upstream removed versions that ownCloud pins (see the pinned versions below). Push the bumps to"
@@ -185,16 +239,6 @@ count() { if [ -z "$1" ]; then echo 0; else echo "$1" | wc -l | tr -d ' '; fi; }
         echo "| Patch | Status |"
         echo "| --- | --- |"
         printf '%s' "$patch_rows"
-    fi
-    echo
-    echo "## Delta to upstream"
-    echo
-    if [ -z "$unexpected" ]; then
-        echo "Exactly the ownCloud recipes ($(names "$(printf '%s\n' ${owncloud[@]+"${owncloud[@]}"})")) and the files the applied patches touch."
-    else
-        echo "These files differ from upstream but are neither an ownCloud recipe nor touched by a patch:"
-        echo
-        echo "$unexpected" | sed 's/.*/- `&`/'
     fi
     echo
     echo "## Pinned versions"

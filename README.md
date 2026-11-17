@@ -144,8 +144,12 @@ Its state lives in `.sync/`:
   takes them. A patch that upstream has absorbed is deleted automatically. A patch that no
   longer applies is reported, and the PR is opened as a draft.
 
-The sync then checks that the difference to upstream is exactly the ownCloud recipes plus
-the patched files.
+The [Upstream tree](.github/workflows/upstream-tree.yml) check runs
+`scripts/sync-upstream.sh --verify` on every pull request, the sync PR included. It rebuilds
+the shared tree from the upstream commit in `.sync/upstream-commit`, the ownCloud-only
+recipes and the patches, and fails if the result differs from the pull request's tree. So an
+in-place edit of an upstream file cannot reach `master`, and neither can a patch committed
+without its result. Make it a required check.
 
 Upstream keeps only the newest patch release per minor, so a resync routinely deletes the
 exact versions `conanfile.py` pins. [`scripts/check-pins.py`](scripts/check-pins.py)

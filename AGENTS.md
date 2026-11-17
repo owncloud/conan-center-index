@@ -144,12 +144,13 @@ of the path length limit.
 
 - **Never hand-edit an upstream recipe.** Send the fix upstream. If the build cannot wait,
   carry it as a patch in `.sync/patches/` (generated with `git diff`), never as an in-place
-  edit: the next resync overwrites in-place edits, and the sync's delta check fails on them.
+  edit: the next resync would overwrite it, so the Upstream tree check
+  (`scripts/sync-upstream.sh --verify`) fails every pull request that has one.
 - **Resync with `scripts/sync-upstream.sh`, not by merging.** `master` requires linear
   history, and the repository squash-merges, so a merge commit is neither pushable nor
   useful. The script replaces the shared tree with upstream's, restores the recipes listed in
-  `.sync/owncloud-recipes`, re-applies `.sync/patches/` and checks that nothing else differs
-  from upstream. Normally the weekly `sync-upstream.yml` workflow runs it.
+  `.sync/owncloud-recipes` and re-applies `.sync/patches/`. Normally the weekly
+  `sync-upstream.yml` workflow runs it.
 - **Upstream prunes old versions.** Upstream keeps only the newest patch release per minor,
   so a resync routinely deletes the exact versions the root `conanfile.py` pins and the build
   stops resolving. `scripts/check-pins.py` lists them, with the version to bump to, and the

@@ -1,0 +1,29 @@
+name: Upstream tree
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    # Everything under recipes/ docs/ assets/ except the ownCloud recipes is
+    # upstream's. This fails on any other change to it, including on the sync
+    # branch: such a change belongs upstream or in .sync/patches/.
+    name: Upstream tree
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Compare with upstream
+        run: scripts/sync-upstream.sh --verify
