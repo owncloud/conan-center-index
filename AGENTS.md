@@ -41,9 +41,10 @@ obtainable prebuilt.
   (HTTP timeout, system package manager mode)
 - `.github/profiles/` - Conan profiles, one per target platform:
   `macos-latest-armv8`, `macos-latest-x86_64`, `ubuntu-latest-x86_64`, `windows-latest-x86_64`
-- `.github/workflows/` - PR checks `lint-pr-title.yml` (PR title) and `commits.yml`
-  (Conventional Commits on every commit), plus `sync-upstream.yml`, which opens the weekly
-  upstream sync PR. No build workflow
+- `.github/workflows/` - PR checks `lint-pr-title.yml` (PR title), `commits.yml`
+  (Conventional Commits on every commit) and `upstream-tree.yml` (no in-place edits of
+  upstream files), plus `sync-upstream.yml`, which opens the weekly upstream sync PR. No
+  build workflow
 - `.sync/` - upstream sync state: the last synced upstream commit, the list of
   ownCloud-only recipes and the patches carried against upstream recipes
 - `scripts/sync-upstream.sh` - the resync itself; `scripts/check-pins.py` - reports pins
@@ -94,7 +95,8 @@ upstream tree and deletes it once upstream has absorbed it. Each one should be u
   The repository squash-merges and takes the PR title as the commit subject, so the PR title
   must follow the same format.
 - **Checked on every PR:** the PR title (`lint-pr-title.yml`), and the Conventional Commits
-  format of *every* commit in the PR, not just the squash subject (`commits.yml`). DCO
+  format of *every* commit in the PR, not just the squash subject (`commits.yml`), and that
+  the shared tree matches upstream plus `.sync/` (`upstream-tree.yml`). DCO
   sign-off is checked by the DCO app, commit signatures by the org branch policy. Fix
   offending commits before pushing (`git commit --amend`, `git rebase --signoff`).
 - **Linear history:** the org default branch policy requires it. A merge commit cannot be
@@ -163,9 +165,9 @@ of the path length limit.
   README and contribution guidance here are ownCloud's.
 - **License:** MIT, inherited from upstream. Recipes describe third-party software and each
   declares its own upstream license in `conanfile.py`; do not change either.
-- **No build CI.** The PR checks only cover titles, commit messages and sign-off; nothing
-  verifies that a recipe resolves or builds. Any recipe or version change must be
-  built locally on the affected profiles before it is proposed, and the platforms that were
+- **No build CI.** The PR checks only cover titles, commit messages, sign-off and the
+  upstream tree; nothing verifies that a recipe resolves or builds. Any recipe or version
+  change must be built locally on the affected profiles before it is proposed, and the platforms that were
   not covered must be named explicitly in the PR.
 
 ## OSPO Policy Constraints
