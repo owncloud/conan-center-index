@@ -48,6 +48,8 @@ class KDSingleApplicationConan(ConanFile):
     def generate(self):
         tc = CMakeToolchain(self)
         tc.cache_variables["KDSingleApplication_QT6"] = True
+        # Upstream picks STATIC or SHARED from this alone, not from BUILD_SHARED_LIBS
+        tc.cache_variables["KDSingleApplication_STATIC"] = not self.options.shared
         tc.cache_variables["BUILD_TRANSLATIONS"] = False
         tc.generate()
 
@@ -71,6 +73,9 @@ class KDSingleApplicationConan(ConanFile):
         # Upstream exports include/kdsingleapplication-qt6, which consumers use unprefixed;
         # include is kept for the prefixed spelling
         self.cpp_info.includedirs = ["include", os.path.join("include", "kdsingleapplication-qt6")]
+        if not self.options.shared:
+            # Upstream sets it PUBLIC on its static target; without it the header dllimports
+            self.cpp_info.defines = ["KDSINGLEAPPLICATION_STATIC_BUILD"]
         self.cpp_info.set_property("cmake_file_name", "KDSingleApplication-qt6")
         self.cpp_info.set_property("cmake_target_name", "KDAB::kdsingleapplication")
         self.cpp_info.set_property("cmake_target_aliases", ["kdsingleapplication"])
