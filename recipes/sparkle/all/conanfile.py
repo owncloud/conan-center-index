@@ -2,6 +2,7 @@ from conan import ConanFile
 from conan.errors import ConanInvalidConfiguration
 from conan.tools.apple import to_apple_arch
 from conan.tools.files import get, copy
+import glob
 import os
 import shlex
 import shutil
@@ -27,9 +28,9 @@ class sparkleRecipe(ConanFile):
     def validate(self):
         if self.settings.os != "Macos":
             raise ConanInvalidConfiguration("Sparkle is a macOS framework")
-        if not to_apple_arch(self):
-            # E.g. a universal arch=armv8|x86_64: build each arch on its own.
-            raise ConanInvalidConfiguration(f"arch={self.settings.arch} has no single Xcode ARCHS value")
+        # One macOS arch per package; a universal arch=armv8|x86_64 is built per arch instead.
+        if str(self.settings.arch) not in ("armv8", "x86_64"):
+            raise ConanInvalidConfiguration(f"Sparkle builds for macOS armv8 or x86_64, not arch={self.settings.arch}")
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
@@ -45,12 +46,15 @@ class sparkleRecipe(ConanFile):
             f"ARCHS={to_apple_arch(self)}",
             "ONLY_ACTIVE_ARCH=NO",
             "CODE_SIGNING_ALLOWED=NO",
+            # A dSYM for Debug too, whose default (dwarf) leaves the debug info in the object files.
+            "DEBUG_INFORMATION_FORMAT=dwarf-with-dsym",
         ]
         if self.settings.get_safe("os.version"):
             args.append(f"MACOSX_DEPLOYMENT_TARGET={self.settings.os.version}")
-        # link-tools.sh runs BSD `ln -h`: /bin first, so GNU coreutils on PATH (e.g. Homebrew's
-        # gnubin) don't shadow it. Nothing a Conan build environment provides lives in /bin.
-        self.run("PATH=/bin:$PATH xcodebuild " + " ".join(args) + " build")
+        # The build phases are written for the system's BSD tools (link-tools.sh runs `ln -h`,
+        # set-git-version-info.sh `which -s`): /usr/bin and /bin first, so GNU coreutils on PATH
+        # (e.g. Homebrew's gnubin) don't shadow them.
+        self.run("PATH=/usr/bin:/bin:$PATH xcodebuild " + " ".join(args) + " build")
 
     def package(self):
         copy(self, "LICENSE", src=self.source_folder, dst=os.path.join(self.package_folder, "licenses"))
@@ -58,9 +62,10 @@ class sparkleRecipe(ConanFile):
         # copytree with symlinks: a framework's Versions/Current and top-level entries are links.
         shutil.copytree(os.path.join(products, "Sparkle.framework"),
                         os.path.join(self.package_folder, "lib", "Sparkle.framework"), symlinks=True)
-        dsym = os.path.join(products, "Sparkle.framework.dSYM")
-        if os.path.isdir(dsym):
-            shutil.copytree(dsym, os.path.join(self.package_folder, "lib", "Sparkle.framework.dSYM"))
+        # The framework's dSYM and those of the helpers inside it (Autoupdate, Updater.app, the XPC
+        # services), so crashes in any of them can be symbolicated.
+        for dsym in glob.glob(os.path.join(products, "*.dSYM")):
+            shutil.copytree(dsym, os.path.join(self.package_folder, "lib", os.path.basename(dsym)), symlinks=True)
 
     def package_info(self):
         self.cpp_info.set_property("cmake_target_name", "sparkle::sparkle")
