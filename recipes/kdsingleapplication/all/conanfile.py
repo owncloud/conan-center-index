@@ -73,6 +73,8 @@ class KDSingleApplicationConan(ConanFile):
         # Upstream exports include/kdsingleapplication-qt6, which consumers use unprefixed;
         # include is kept for the prefixed spelling
         self.cpp_info.includedirs = ["include", os.path.join("include", "kdsingleapplication-qt6")]
+        # Upstream links Qt Core PUBLIC and Network PRIVATE; a static archive needs both at the consumer's link
+        self.cpp_info.requires = ["qt::qtCore", "qt::qtNetwork"]
         if not self.options.shared:
             # Upstream sets it PUBLIC on its static target; without it the header dllimports
             self.cpp_info.defines = ["KDSINGLEAPPLICATION_STATIC_BUILD"]

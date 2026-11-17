@@ -5,7 +5,8 @@
 
 int main()
 {
-    // Referencing a member links the library, which also checks the static/shared defines
-    bool (KDSingleApplication::*isPrimary)() const = &KDSingleApplication::isPrimaryInstance;
-    std::cout << KDSINGLEAPPLICATION_VERSION_STRING << (isPrimary ? "" : "?") << std::endl;
+    // staticMetaObject is data in the library, so this links it (and, on Windows, checks the
+    // static/shared import define); a member function pointer gets optimized away
+    std::cout << KDSINGLEAPPLICATION_VERSION_STRING << " "
+              << KDSingleApplication::staticMetaObject.className() << std::endl;
 }
