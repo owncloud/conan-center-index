@@ -136,7 +136,8 @@ def main(argv):
         return 2
     root = Path(argv[1] if len(argv) == 2 else ".")
     recipes = root / "recipes"
-    owncloud = (root / ".sync" / "owncloud-recipes").read_text().split()
+    lines = (root / ".sync" / "owncloud-recipes").read_text().splitlines()
+    owncloud = [name for line in lines for name in line.split("#", 1)[0].split()]
 
     conanfiles = [root / "conanfile.py"] if (root / "conanfile.py").is_file() else []
     for name in owncloud:

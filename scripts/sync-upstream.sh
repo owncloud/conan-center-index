@@ -47,7 +47,11 @@ done
 [ -z "$(git status --porcelain)" ] || die "the working tree is not clean"
 
 old="$(tr -d '[:space:]' < .sync/upstream-commit)"
-read -r -a owncloud <<< "$(tr '\n' ' ' < .sync/owncloud-recipes)"
+# One name per line or space-separated; "#" starts a comment.
+owncloud=()
+while IFS= read -r name; do
+    owncloud+=("$name")
+done < <(sed 's/#.*//' .sync/owncloud-recipes | tr -s '[:blank:]' '\n' | grep -v '^$' || true)
 
 # Shallow: only upstream's tree is needed, not its history.
 git fetch -q --depth=1 --no-tags "$UPSTREAM_URL" "$ref"
@@ -58,7 +62,7 @@ if [ "$new" = "$old" ]; then
     exit 10
 fi
 
-for name in "${owncloud[@]}"; do
+for name in ${owncloud[@]+"${owncloud[@]}"}; do
     [ -d "recipes/$name" ] || die "recipes/$name is listed in .sync/owncloud-recipes but missing"
     if git cat-file -e "$new:recipes/$name" 2>/dev/null; then
         die "upstream now has a recipe named $name too; rename ours or drop it from .sync/owncloud-recipes"
@@ -73,7 +77,7 @@ done
 
 aside="$(mktemp -d)"
 trap 'rm -rf "$aside"' EXIT
-for name in "${owncloud[@]}"; do
+for name in ${owncloud[@]+"${owncloud[@]}"}; do
     cp -R "recipes/$name" "$aside/"
 done
 
@@ -104,7 +108,7 @@ done
 echo "$new" > .sync/upstream-commit
 git add -A
 
-expected="$( { for name in "${owncloud[@]}"; do git ls-files "recipes/$name"; done
+expected="$( { for name in ${owncloud[@]+"${owncloud[@]}"}; do git ls-files "recipes/$name"; done
               printf '%s' "$touched"; } | grep -v '^$' | sort -u)"
 actual="$(git diff --cached --name-only "$new" -- "${SHARED[@]}" | sort -u)"
 unexpected="$(comm -13 <(printf '%s\n' "$expected") <(printf '%s\n' "$actual") | grep -v '^$' || true)"
@@ -160,7 +164,7 @@ count() { if [ -z "$1" ]; then echo 0; else echo "$1" | wc -l | tr -d ' '; fi; }
     echo "## Delta to upstream"
     echo
     if [ -z "$unexpected" ]; then
-        echo "Exactly the ownCloud recipes ($(names "$(printf '%s\n' "${owncloud[@]}")")) and the files the applied patches touch."
+        echo "Exactly the ownCloud recipes ($(names "$(printf '%s\n' ${owncloud[@]+"${owncloud[@]}"})")) and the files the applied patches touch."
     else
         echo "These files differ from upstream but are neither an ownCloud recipe nor touched by a patch:"
         echo
