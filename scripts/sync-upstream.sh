@@ -6,7 +6,8 @@
 #   REF            upstream branch or full commit to sync to, default master
 #   --report FILE  write a markdown summary, the sync PR's body, to FILE
 #
-# Run from the repository root on a clean tree. It replaces recipes/ docs/
+# Run from the repository root on a clean tree, without ignored files in the
+# shared paths outside the ownCloud recipes. It replaces recipes/ docs/
 # assets/ .editorconfig .gitattributes LICENSE with upstream's, puts back the
 # recipes listed in .sync/owncloud-recipes, re-applies .sync/patches/*.patch,
 # records the upstream commit in .sync/upstream-commit and stages the result.
@@ -21,8 +22,9 @@
 #
 # Exit codes: 0 synced, 10 already up to date (nothing touched), 11 synced but
 # a patch conflicted, the delta check failed or a pinned version is gone,
-# 2 on bad arguments, a dirty tree, an ownCloud recipe name that upstream now
-# has too, or a shared path upstream no longer has; git's code otherwise.
+# 2 on bad arguments, a dirty tree or ignored files in the way, an ownCloud
+# recipe name that upstream now has too, or a shared path upstream no longer
+# has; git's code otherwise.
 
 set -euo pipefail
 
@@ -52,6 +54,15 @@ owncloud=()
 while IFS= read -r name; do
     owncloud+=("$name")
 done < <(sed 's/#.*//' .sync/owncloud-recipes | tr -s '[:blank:]' '\n' | grep -v '^$' || true)
+
+# git status --porcelain skips ignored files, but the shared tree is deleted
+# wholesale below, so build output such as test_package/build/ would go too.
+# The ownCloud recipes are copied aside with theirs.
+ignored="$(git status --porcelain --ignored -- "${SHARED[@]}" | sed -n 's/^!! //p')"
+for name in ${owncloud[@]+"${owncloud[@]}"}; do
+    ignored="$(printf '%s\n' "$ignored" | grep -v "^recipes/$name/" || true)"
+done
+[ -z "$ignored" ] || die "ignored files would be deleted, remove them first (git clean -fdX -- ${SHARED[*]}):"$'\n'"$ignored"
 
 # Shallow: only upstream's tree is needed, not its history.
 git fetch -q --depth=1 --no-tags "$UPSTREAM_URL" "$ref"
