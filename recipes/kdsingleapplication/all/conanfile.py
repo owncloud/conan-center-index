@@ -1,7 +1,7 @@
 from conan import ConanFile
 from conan.tools.build import check_min_cppstd
 from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
-from conan.tools.files import apply_conandata_patches, copy, export_conandata_patches, get, replace_in_file
+from conan.tools.files import apply_conandata_patches, copy, export_conandata_patches, get, replace_in_file, rmdir
 import os
 
 required_conan_version = ">=2.0.9"
@@ -64,9 +64,13 @@ class KDSingleApplicationConan(ConanFile):
         copy(self, "LICENSE.txt", self.source_folder, os.path.join(self.package_folder, "licenses"))
         cmake = CMake(self)
         cmake.install()
+        rmdir(self, os.path.join(self.package_folder, "lib", "cmake"))
 
     def package_info(self):
         self.cpp_info.libs = ["kdsingleapplication-qt6"]
+        # Upstream exports include/kdsingleapplication-qt6, which consumers use unprefixed;
+        # include is kept for the prefixed spelling
+        self.cpp_info.includedirs = ["include", os.path.join("include", "kdsingleapplication-qt6")]
         self.cpp_info.set_property("cmake_file_name", "KDSingleApplication-qt6")
         self.cpp_info.set_property("cmake_target_name", "KDAB::kdsingleapplication")
         self.cpp_info.set_property("cmake_target_aliases", ["kdsingleapplication"])

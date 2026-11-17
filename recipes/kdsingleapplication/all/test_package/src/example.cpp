@@ -1,4 +1,6 @@
-#include "kdsingleapplication_version.h"
+#include "kdsingleapplication-qt6/kdsingleapplication_version.h"
+// The desktop client includes the headers unprefixed
+#include <kdsingleapplication.h>
 #include <iostream>
 
 int main()
