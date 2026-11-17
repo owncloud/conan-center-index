@@ -123,8 +123,8 @@ first job can tell the app's commits on the branch from anyone else's without th
 The job that resolves the graph runs upstream recipe code, so it gets no secrets and
 returns only a report. The PR itself is opened with
 [`peter-evans/create-pull-request`](https://github.com/peter-evans/create-pull-request), as
-in `owncloud/reusable-workflows`, which commits through the API so that GitHub signs the
-commit as the app.
+in `owncloud/reusable-workflows`. It pushes with git rather than signing through the API,
+whose rate limit a large sync would exceed; the squash merge onto `master` is signed.
 
 The workflow runs [`scripts/sync-upstream.sh`](scripts/sync-upstream.sh), which also works
 locally from a clean checkout:

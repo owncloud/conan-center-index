@@ -64,14 +64,13 @@ jobs:
           lease="$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)"
           echo "lease=$lease" >> "$GITHUB_OUTPUT"
           if [ -n "$lease" ]; then
-            # A commit on the branch that the app did not author, or that was not
-            # committed through the API (committer web-flow) as the app's are, holds the
-            # sync: an amend or rebase keeps the author but not the committer. That
-            # applies whether or not a PR is open; the branch is deleted on merge. A
-            # failed call fails the job rather than reading as "no one else".
+            # A commit on the branch that the app did not both author and commit (an
+            # amend or rebase keeps the author) holds the sync, whether or not a PR is
+            # open; the branch is deleted on merge. A failed call fails the job rather
+            # than reading as "no one else".
             others="$(gh api "repos/$GITHUB_REPOSITORY/compare/$master...$lease" \
               | jq -r --arg bot "${SYNC_APP_SLUG}[bot]" \
-                '.commits[] | select(.author.login != $bot or .committer.login != "web-flow") | .sha')"
+                '.commits[] | select(.author.login != $bot or .committer.login != $bot) | .sha')"
             if [ -n "$others" ]; then
               echo "::warning::$BRANCH has commits by someone else; leaving it alone until it is merged or deleted"
               echo "result=held" >> "$GITHUB_OUTPUT"
@@ -236,21 +235,28 @@ jobs:
           GH_TOKEN: ${{ steps.app.outputs.token }}
           APP_SLUG: ${{ steps.app.outputs.app-slug }}
           LEASE: ${{ needs.sync.outputs.lease }}
+          MASTER: ${{ needs.sync.outputs.master }}
           SYNC_APP_SLUG: ${{ vars.SYNC_APP_SLUG }}
         run: |
           # The sync job told the app's commits from others' by this name.
           [ "$APP_SLUG" = "$SYNC_APP_SLUG" ] \
             || { echo "::error::SYNC_APP_SLUG is $SYNC_APP_SLUG, but the app is $APP_SLUG"; exit 1; }
-          # The action below force-pushes and takes no lease, so make sure nobody has
-          # pushed since the sync job checked the branch.
+          # The action below force-pushes without a lease, and puts the sync onto
+          # master as it is then, so make sure neither has moved since the sync job.
           head="$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)"
           [ "$head" = "$LEASE" ] \
             || { echo "::error::$BRANCH moved since the check (${LEASE:-none} -> ${head:-none}); run again"; exit 1; }
+          [ "$(git ls-remote origin refs/heads/master | cut -f1)" = "$MASTER" ] \
+            || { echo "::error::master moved since the sync job; run again"; exit 1; }
           bot="${APP_SLUG}[bot]"
-          echo "signoff=$bot <$(gh api "/users/$bot" --jq .id)+$bot@users.noreply.github.com>" >> "$GITHUB_OUTPUT"
+          echo "identity=$bot <$(gh api "/users/$bot" --jq .id)+$bot@users.noreply.github.com>" >> "$GITHUB_OUTPUT"
 
       # The organisation's way to open bot pull requests (see owncloud/reusable-workflows).
-      # It commits the staged sync through the API, so GitHub signs the commit as the app.
+      # It commits the whole worktree as the app, puts that commit onto master and
+      # pushes it with git. Not sign-commits: that recreates the commit file by file
+      # through the API, and a sync touches more files than GitHub's secondary rate
+      # limit allows per hour. The branch has no signature rule, and the squash merge
+      # onto master is signed by GitHub.
       - name: Open or update the pull request
         id: cpr
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
@@ -264,15 +270,17 @@ jobs:
             ${{ env.TITLE }}
 
             Upstream: conan-io/conan-center-index@${{ needs.sync.outputs.upstream }}
-
-            Signed-off-by: ${{ steps.check.outputs.signoff }}
-          sign-commits: true
+          author: ${{ steps.check.outputs.identity }}
+          committer: ${{ steps.check.outputs.identity }}
+          signoff: true
           delete-branch: true
           # Only on create; an update is handled below.
           draft: ${{ steps.sync.outputs.result != 'clean' }}
 
       - name: Set the draft state
-        if: steps.cpr.outputs.pull-request-operation == 'updated'
+        # Also when the branch was already up to date (operation none), since the
+        # draft state may still be wrong, e.g. after a manual change.
+        if: steps.cpr.outputs.pull-request-number != '' && !contains(fromJSON('["created", "closed"]'), steps.cpr.outputs.pull-request-operation)
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
           PR: ${{ steps.cpr.outputs.pull-request-number }}
