@@ -128,6 +128,20 @@ class QtConan(ConanFile):
     _submodules_tree = None
 
     @property
+    def _macos_x86_64_on_arm64(self):
+        # macOS x86_64 from an arm64 Mac: Qt is built natively there, with
+        # CMAKE_OSX_ARCHITECTURES=x86_64, and runs its own x86_64 tools under
+        # Rosetta. A Qt cross build needs the host tools of every module from a
+        # native Qt (QT_HOST_PATH), and this recipe provides only the core ones,
+        # so qtdeclarative's (qmldom, ...) are not found.
+        return (self.settings.os == "Macos" and self.settings_build.os == "Macos"
+                and str(self.settings.arch) == "x86_64" and str(self.settings_build.arch) == "armv8")
+
+    @property
+    def _cross_building(self):
+        return cross_building(self) and not self._macos_x86_64_on_arm64
+
+    @property
     def _get_module_tree(self):
         if self._submodules_tree:
             return self._submodules_tree
@@ -301,7 +315,8 @@ class QtConan(ConanFile):
             if not self.options.with_dbus and self.settings.os == "Linux":
                 raise ConanInvalidConfiguration("option qt:webengine requires also qt:with_dbus on Linux")
 
-            if hasattr(self, "settings_build") and cross_building(self, skip_x64_x86=True):
+            if hasattr(self, "settings_build") and cross_building(self, skip_x64_x86=True) \
+                    and not self._macos_x86_64_on_arm64:
                 raise ConanInvalidConfiguration("Cross compiling Qt WebEngine is not supported")
 
         if self.options.widgets and not self.options.gui:
@@ -439,7 +454,7 @@ class QtConan(ConanFile):
 
         if self.options.qtwayland:
             self.tool_requires("wayland/1.22.0")
-        if cross_building(self):
+        if self._cross_building:
             self.tool_requires(f"qt/{self.version}")
 
     def generate(self):
@@ -483,6 +498,12 @@ class QtConan(ConanFile):
         env.vars(self).save_script("conanbuildenv_extra_vars")
 
         tc = CMakeToolchain(self, generator="Ninja")
+        if self._macos_x86_64_on_arm64:
+            # No CMAKE_SYSTEM_NAME, so CMake and Qt see a native build; the
+            # apple_system block still sets CMAKE_OSX_ARCHITECTURES=x86_64.
+            # CMake then reports the host's CMAKE_SYSTEM_PROCESSOR (arm64);
+            # Qt detects its target architecture with a compile test instead.
+            tc.blocks.remove("generic_system")
 
         tc.absolute_paths = True
 
@@ -614,7 +635,7 @@ class QtConan(ConanFile):
                 self.output.warning(f"host not supported: {self.settings.os} {self.settings.compiler} {self.settings.compiler.version} {self.settings.arch}")
         if self.options.cross_compile:
             tc.variables["QT_QMAKE_DEVICE_OPTIONS"] = f"CROSS_COMPILE={self.options.cross_compile}"
-        if cross_building(self):
+        if self._cross_building:
             # Mainly to locate Qt6HostInfoConfig.cmake
             tc.cache_variables["QT_HOST_PATH"] = self.dependencies.direct_build["qt"].package_folder
             # Stand-in for Qt6CoreTools - which is loaded for the executable targets

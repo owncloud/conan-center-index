@@ -65,6 +65,16 @@ These must be upstreamed and removed on the next resync:
 - `recipes/dbus/all/conanfile.py` — changed `meson/1.4.0` pin to
   `meson/[>=1.4.0 <2]` because upstream pruned meson/1.4.0.
   Upstream the fix to `conan-io/conan-center-index`.
+- `recipes/qt/6.x.x/conanfile.py` — macOS x86_64 built on an arm64 Mac
+  (`-pr:h macos-x86_64 -pr:b macos-armv8`, the desktop client's profiles, as
+  its dependency builder runs them) is built natively, not as a cross build: no qt
+  tool_requires, no `QT_HOST_PATH`, no `CMAKE_SYSTEM_NAME`
+  (`_macos_x86_64_on_arm64`). Upstream's cross build takes only the core host
+  tools from the build-context Qt and fails in qtdeclarative (`Qt6::qmldom`).
+  Needs Rosetta on the build machine. test_package still adds a build-context
+  Qt in that case (`can_run` is false), so `conan create` builds two. Keyed on os/arch, not on `can_run`, by
+  decision (2026-11-17); a generic fix upstream would make every module's host
+  tools available under `QT_HOST_PATH`.
 
 ## Development Conventions
 
