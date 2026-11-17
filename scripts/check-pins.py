@@ -80,7 +80,7 @@ def config_versions(recipes, name):
     for line in config.read_text().splitlines():
         if not line.strip() or line.lstrip().startswith("#"):
             continue
-        if re.match(r"^versions:\s*$", line):
+        if re.match(r"""^(versions|"versions"|'versions'):\s*$""", line):
             in_versions = True
             continue
         if in_versions:
