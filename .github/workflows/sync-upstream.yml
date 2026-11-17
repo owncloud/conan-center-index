@@ -94,18 +94,28 @@ jobs:
           ref: ${{ needs.sync.outputs.master }}
           persist-credentials: false
 
-      - name: Resolve
+      - name: Sync
         env:
           UPSTREAM: ${{ needs.sync.outputs.upstream }}
         run: |
           rc=0
           scripts/sync-upstream.sh "$UPSTREAM" || rc=$?
           [ "$rc" = 0 ] || [ "$rc" = 11 ] || exit "$rc"
-          # Without a root conanfile.py there is no graph to resolve here.
-          [ -f conanfile.py ] || exit 0
-          pipx install "conan==$CONAN_VERSION"
-          export CONAN_HOME="$RUNNER_TEMP/conan-home"
-          conan config install .config/global.conf
+
+      # Without a root conanfile.py there is no graph to resolve here.
+      - uses: conan-io/setup-conan@2c7f599b76d52302b8e122bf890878e696d4577b # v1.5.1
+        if: hashFiles('conanfile.py') != ''
+        with:
+          version: ${{ env.CONAN_VERSION }}
+          home: ${{ runner.temp }}/conan-home
+          config_urls: .config/global.conf
+          use_venv: true
+          # The profiles come from .github/profiles/.
+          profile_detect: false
+
+      - name: Resolve
+        if: hashFiles('conanfile.py') != ''
+        run: |
           conan remote remove conancenter
           conan remote add local . --type=local-recipes-index
           # Table rows only; the pull-request job adds the heading.
