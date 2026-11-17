@@ -13,9 +13,10 @@ on:
 permissions:
   contents: read
 
-# Grouped per event, as in zizmor.yml; a newer push to a PR cancels the older run.
+# A newer push to a PR cancels its older run. On master each commit gets its own
+# group, so a queued run is never replaced and every commit is checked.
 concurrency:
-  group: upstream-tree-${{ github.event_name }}-${{ github.ref }}
+  group: upstream-tree-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

@@ -28,10 +28,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # To find the open sync PR and whose commits are on its branch.
-      pull-requests: read
+      pull-requests: read # to find the open sync PR
     outputs:
-      # changed, current, or held while someone else has commits on the PR.
+      # changed, current, or held while someone else has commits on the branch.
       result: ${{ steps.check.outputs.result }}
       # The later jobs sync these same commits, not whatever master is by then.
       upstream: ${{ steps.check.outputs.upstream }}
@@ -49,7 +48,9 @@ jobs:
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
+          SYNC_APP_SLUG: ${{ vars.SYNC_APP_SLUG }}
         run: |
+          [ -n "$SYNC_APP_SLUG" ] || { echo "::error::set the repository variable SYNC_APP_SLUG"; exit 1; }
           master="$(git rev-parse HEAD)"
           echo "master=$master" >> "$GITHUB_OUTPUT"
           upstream="$(git ls-remote "$UPSTREAM_URL" refs/heads/master | cut -f1)"
@@ -69,12 +70,14 @@ jobs:
             --jq '.[0].number // empty')"
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
           if [ -n "$lease" ]; then
-            # A commit on the branch by anyone but a bot holds the sync, whether or not
-            # a PR is open; the branch is deleted on merge. A failed call fails the job
-            # rather than reading as "no one else".
-            humans="$(gh api "repos/$GITHUB_REPOSITORY/compare/$master...$lease" \
-              --jq '.commits[] | select(.author.type != "Bot") | .author.login // "(unlinked)"')"
-            if [ -n "$humans" ]; then
+            # A commit on the branch that the app did not both author and commit (an
+            # amend or rebase keeps the author) holds the sync, whether or not a PR is
+            # open; the branch is deleted on merge. A failed call fails the job rather
+            # than reading as "no one else".
+            others="$(gh api "repos/$GITHUB_REPOSITORY/compare/$master...$lease" \
+              | jq -r --arg bot "${SYNC_APP_SLUG}[bot]" \
+                '.commits[] | select(.author.login != $bot or .committer.login != $bot) | .sha')"
+            if [ -n "$others" ]; then
               echo "::warning::$BRANCH has commits by someone else; leaving it alone until it is merged or deleted"
               echo "result=held" >> "$GITHUB_OUTPUT"
               exit 0
@@ -197,7 +200,11 @@ jobs:
           PR: ${{ needs.sync.outputs.pr }}
           LEASE: ${{ needs.sync.outputs.lease }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SYNC_APP_SLUG: ${{ vars.SYNC_APP_SLUG }}
         run: |
+          # The sync job told the app's commits from others' by this name.
+          [ "$APP_SLUG" = "$SYNC_APP_SLUG" ] \
+            || { echo "::error::SYNC_APP_SLUG is $SYNC_APP_SLUG, but the app is $APP_SLUG"; exit 1; }
           bot="${APP_SLUG}[bot]"
           email="$(gh api "/users/$bot" --jq .id)+$bot@users.noreply.github.com"
 
@@ -243,7 +250,7 @@ jobs:
             echo
             echo "---"
             echo "Opened by the [Sync upstream]($RUN_URL) workflow, which replaces this branch every week while"
-            echo "the pull request is open. A commit by anyone else stops that until it is merged or closed."
+            echo "the pull request is open. A commit by anyone else stops that until it is merged, or the branch is deleted."
           } > "$RUNNER_TEMP/body.md"
           cat "$RUNNER_TEMP/body.md" >> "$GITHUB_STEP_SUMMARY"
 
