@@ -1,11 +1,16 @@
 from conan import ConanFile
-from conan.tools.apple import XcodeBuild
+from conan.errors import ConanInvalidConfiguration
 from conan.tools.files import get, copy
+from conan.tools.scm import Version
+import glob
 import os
+import shlex
+import shutil
 
 class sparkleRecipe(ConanFile):
     name = "sparkle"
-    package_type = "library"
+    # Sparkle.framework is always a dynamic framework.
+    package_type = "shared-library"
 
     # Optional metadata
     license = "MIT"
@@ -15,19 +20,82 @@ class sparkleRecipe(ConanFile):
 
     # Binary configuration
     settings = "os", "compiler", "build_type", "arch"
-    options = {"shared": [True, False], "fPIC": [True, False]}
-    default_options = {"shared": False, "fPIC": True}
+
+    @property
+    def _configuration(self):
+        return "Debug" if self.settings.build_type == "Debug" else "Release"
+
+    @property
+    def _archs(self):
+        # A universal arch=armv8|x86_64 becomes one fat framework, ARCHS="arm64 x86_64".
+        return str(self.settings.arch).split("|")
+
+    # Xcode's names for the arches validate() accepts; to_apple_arch() only maps settings.arch
+    # as a whole and has no mapping for a universal arch.
+    _xcode_archs = {"armv8": "arm64", "x86_64": "x86_64"}
+
+    def validate(self):
+        if self.settings.os != "Macos":
+            raise ConanInvalidConfiguration("Sparkle is a macOS framework")
+        if any(arch not in self._xcode_archs for arch in self._archs):
+            raise ConanInvalidConfiguration(f"Sparkle builds for macOS armv8 and x86_64, not arch={self.settings.arch}")
+        # Sparkle's own MACOSX_DEPLOYMENT_TARGET; os.version overrides it in build().
+        os_version = self.settings.get_safe("os.version")
+        if os_version and Version(os_version) < "10.13":
+            raise ConanInvalidConfiguration(f"Sparkle {self.version} needs macOS 10.13 or later, not os.version={os_version}")
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
 
     def build(self):
-        self.run("xcodebuild -project Sparkle.xcodeproj -scheme Sparkle -configuration Release build")
+        # -derivedDataPath: without it the product lands in ~/Library/Developer/Xcode/DerivedData,
+        # outside the build folder. Signing stays at Sparkle's ad-hoc default (CODE_SIGN_IDENTITY = -),
+        # which needs no certificate and keeps the nested helpers signed until whoever bundles the
+        # framework re-signs it with a Developer ID.
+        args = [
+            "-project Sparkle.xcodeproj",
+            "-scheme Sparkle",
+            f"-configuration {self._configuration}",
+            f"-derivedDataPath {shlex.quote(os.path.join(self.build_folder, 'dd'))}",
+            shlex.quote("ARCHS=" + " ".join(self._xcode_archs[arch] for arch in self._archs)),
+            "ONLY_ACTIVE_ARCH=NO",
+            # A dSYM for Debug too, whose default (dwarf) leaves the debug info in the object files.
+            "DEBUG_INFORMATION_FORMAT=dwarf-with-dsym",
+        ]
+        if self.settings.get_safe("os.version"):
+            args.append(f"MACOSX_DEPLOYMENT_TARGET={self.settings.os.version}")
+        # The build phases are written for the system's BSD tools (link-tools.sh runs `ln -h`,
+        # set-git-version-info.sh `which -s`). Put just those two first, so GNU coreutils on PATH
+        # (e.g. Homebrew's gnubin) don't shadow them and the rest of the build environment still does.
+        bsd_tools = os.path.join(self.build_folder, "bsd-tools")
+        os.makedirs(bsd_tools, exist_ok=True)
+        for tool in ("/bin/ln", "/usr/bin/which"):
+            link = os.path.join(bsd_tools, os.path.basename(tool))
+            if not os.path.lexists(link):
+                os.symlink(tool, link)
+        # The sources are a tarball, not a checkout: stop set-git-version-info.sh's `git describe`
+        # from finding an enclosing repository (e.g. a CONAN_HOME inside a checkout) and stamping
+        # its tags into CFBundleShortVersionString.
+        ceiling = os.path.dirname(self.source_folder)
+        self.run(f"PATH={shlex.quote(bsd_tools)}:$PATH GIT_CEILING_DIRECTORIES={shlex.quote(ceiling)}${{GIT_CEILING_DIRECTORIES:+:$GIT_CEILING_DIRECTORIES}} "
+                 "xcodebuild " + " ".join(args) + " build")
 
     def package(self):
         copy(self, "LICENSE", src=self.source_folder, dst=os.path.join(self.package_folder, "licenses"))
-        copy(self, pattern="*", src=os.path.join(self.build_folder, "Sparkle.framework"), dst=os.path.join(self.package_folder, "lib"))
-        copy(self, pattern="*", src=os.path.join(self.build_folder, "Sparkle.framework.dSym"), dst=os.path.join(self.package_folder, "lib"))
+        products = os.path.join(self.build_folder, "dd", "Build", "Products", self._configuration)
+        # copytree with symlinks: a framework's Versions/Current and top-level entries are links.
+        shutil.copytree(os.path.join(products, "Sparkle.framework"),
+                        os.path.join(self.package_folder, "lib", "Sparkle.framework"), symlinks=True)
+        # The framework's dSYM and those of the helpers inside it (Autoupdate, Updater.app, the XPC
+        # services), so crashes in any of them can be symbolicated.
+        for dsym in glob.glob(os.path.join(products, "*.dSYM")):
+            shutil.copytree(dsym, os.path.join(self.package_folder, "lib", os.path.basename(dsym)), symlinks=True)
 
     def package_info(self):
         self.cpp_info.set_property("cmake_target_name", "sparkle::sparkle")
+        # Headers and binary come from the framework itself.
+        self.cpp_info.frameworkdirs = ["lib"]
+        self.cpp_info.frameworks = ["Sparkle"]
+        self.cpp_info.includedirs = []
+        self.cpp_info.libdirs = []
+        self.cpp_info.bindirs = []
