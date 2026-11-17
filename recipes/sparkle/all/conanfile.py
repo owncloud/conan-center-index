@@ -3,6 +3,7 @@ from conan.errors import ConanInvalidConfiguration
 from conan.tools.apple import to_apple_arch
 from conan.tools.files import get, copy
 import os
+import shlex
 import shutil
 
 class sparkleRecipe(ConanFile):
@@ -26,6 +27,9 @@ class sparkleRecipe(ConanFile):
     def validate(self):
         if self.settings.os != "Macos":
             raise ConanInvalidConfiguration("Sparkle is a macOS framework")
+        if not to_apple_arch(self):
+            # E.g. a universal arch=armv8|x86_64: build each arch on its own.
+            raise ConanInvalidConfiguration(f"arch={self.settings.arch} has no single Xcode ARCHS value")
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
@@ -37,16 +41,16 @@ class sparkleRecipe(ConanFile):
             "-project Sparkle.xcodeproj",
             "-scheme Sparkle",
             f"-configuration {self._configuration}",
-            f"-derivedDataPath {os.path.join(self.build_folder, 'dd')}",
+            f"-derivedDataPath {shlex.quote(os.path.join(self.build_folder, 'dd'))}",
             f"ARCHS={to_apple_arch(self)}",
             "ONLY_ACTIVE_ARCH=NO",
             "CODE_SIGNING_ALLOWED=NO",
         ]
         if self.settings.get_safe("os.version"):
             args.append(f"MACOSX_DEPLOYMENT_TARGET={self.settings.os.version}")
-        # The project's build phases call BSD tools (link-tools.sh runs `ln -h`); keep GNU
-        # coreutils on PATH, e.g. Homebrew's gnubin, from shadowing them.
-        self.run("PATH=/usr/bin:/bin:/usr/sbin:/sbin:$PATH xcodebuild " + " ".join(args) + " build")
+        # link-tools.sh runs BSD `ln -h`: /bin first, so GNU coreutils on PATH (e.g. Homebrew's
+        # gnubin) don't shadow it. Nothing a Conan build environment provides lives in /bin.
+        self.run("PATH=/bin:$PATH xcodebuild " + " ".join(args) + " build")
 
     def package(self):
         copy(self, "LICENSE", src=self.source_folder, dst=os.path.join(self.package_folder, "licenses"))
@@ -54,6 +58,9 @@ class sparkleRecipe(ConanFile):
         # copytree with symlinks: a framework's Versions/Current and top-level entries are links.
         shutil.copytree(os.path.join(products, "Sparkle.framework"),
                         os.path.join(self.package_folder, "lib", "Sparkle.framework"), symlinks=True)
+        dsym = os.path.join(products, "Sparkle.framework.dSYM")
+        if os.path.isdir(dsym):
+            shutil.copytree(dsym, os.path.join(self.package_folder, "lib", "Sparkle.framework.dSYM"))
 
     def package_info(self):
         self.cpp_info.set_property("cmake_target_name", "sparkle::sparkle")
