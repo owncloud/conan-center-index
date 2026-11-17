@@ -1,6 +1,5 @@
 from conan import ConanFile
 from conan.errors import ConanInvalidConfiguration
-from conan.tools.apple import to_apple_arch
 from conan.tools.files import get, copy
 from conan.tools.scm import Version
 import glob
@@ -31,10 +30,14 @@ class sparkleRecipe(ConanFile):
         # A universal arch=armv8|x86_64 becomes one fat framework, ARCHS="arm64 x86_64".
         return str(self.settings.arch).split("|")
 
+    # Xcode's names for the arches validate() accepts; to_apple_arch() only maps settings.arch
+    # as a whole, which is None for a universal arch.
+    _xcode_archs = {"armv8": "arm64", "x86_64": "x86_64"}
+
     def validate(self):
         if self.settings.os != "Macos":
             raise ConanInvalidConfiguration("Sparkle is a macOS framework")
-        if any(arch not in ("armv8", "x86_64") for arch in self._archs):
+        if any(arch not in self._xcode_archs for arch in self._archs):
             raise ConanInvalidConfiguration(f"Sparkle builds for macOS armv8 and x86_64, not arch={self.settings.arch}")
         # Sparkle's own MACOSX_DEPLOYMENT_TARGET; os.version overrides it in build().
         os_version = self.settings.get_safe("os.version")
@@ -54,7 +57,7 @@ class sparkleRecipe(ConanFile):
             "-scheme Sparkle",
             f"-configuration {self._configuration}",
             f"-derivedDataPath {shlex.quote(os.path.join(self.build_folder, 'dd'))}",
-            shlex.quote("ARCHS=" + " ".join(to_apple_arch(self, arch) for arch in self._archs)),
+            shlex.quote("ARCHS=" + " ".join(self._xcode_archs[arch] for arch in self._archs)),
             "ONLY_ACTIVE_ARCH=NO",
             # A dSYM for Debug too, whose default (dwarf) leaves the debug info in the object files.
             "DEBUG_INFORMATION_FORMAT=dwarf-with-dsym",
@@ -74,7 +77,7 @@ class sparkleRecipe(ConanFile):
         # from finding an enclosing repository (e.g. a CONAN_HOME inside a checkout) and stamping
         # its tags into CFBundleShortVersionString.
         ceiling = os.path.dirname(self.source_folder)
-        self.run(f"PATH={shlex.quote(bsd_tools)}:$PATH GIT_CEILING_DIRECTORIES={shlex.quote(ceiling)} "
+        self.run(f"PATH={shlex.quote(bsd_tools)}:$PATH GIT_CEILING_DIRECTORIES={shlex.quote(ceiling)}${{GIT_CEILING_DIRECTORIES:+:$GIT_CEILING_DIRECTORIES}} "
                  "xcodebuild " + " ".join(args) + " build")
 
     def package(self):

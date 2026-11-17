@@ -24,6 +24,8 @@ class sparkleTestConan(ConanFile):
         cmake_layout(self)
 
     def test(self):
-        if can_run(self):
+        # can_run() compares arch as a whole string, so a universal arch=armv8|x86_64 would never
+        # run, although its fat binary runs on either build arch.
+        if can_run(self) or str(self.settings_build.arch) in str(self.settings.arch).split("|"):
             cmd = os.path.join(self.cpp.build.bindir, "example")
             self.run(cmd, env="conanrun")
