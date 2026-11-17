@@ -14,9 +14,10 @@
 # It never commits.
 #
 # A patch that upstream has absorbed (it reverse-applies cleanly) is deleted.
-# A patch that applies neither way is left in place and reported. Afterwards
-# the difference to upstream must be exactly the ownCloud recipes plus the
-# files the applied patches touch.
+# A patch that applies neither way is left in place and reported, as obsolete
+# if upstream removed the files it modifies. Afterwards the difference to
+# upstream must be exactly the ownCloud recipes plus the files the applied
+# patches touch.
 #
 # Needs git and python3. UPSTREAM_URL overrides the upstream repository.
 #
@@ -112,7 +113,21 @@ for patch in .sync/patches/*.patch; do
     else
         needs_human=1
         conflicted=1
-        patch_rows="$patch_rows| \`$patch\` | **conflict, not applied** |"$'\n'
+        # If upstream deleted or moved every file the patch modifies, it is
+        # obsolete rather than in conflict; files it creates do not count.
+        created="$(git apply --summary "$patch" | sed -n 's/^ create mode [0-9]* //p')"
+        targets=0
+        present=0
+        while IFS= read -r path; do
+            if printf '%s\n' "$created" | grep -qxF -- "$path"; then continue; fi
+            targets=$((targets + 1))
+            if [ -e "$path" ]; then present=$((present + 1)); fi
+        done < <(git apply --numstat "$patch" | cut -f3)
+        if [ "$targets" -gt 0 ] && [ "$present" = 0 ]; then
+            patch_rows="$patch_rows| \`$patch\` | **target gone upstream, not applied:** delete or retarget it by a PR on master |"$'\n'
+        else
+            patch_rows="$patch_rows| \`$patch\` | **conflict, not applied** |"$'\n'
+        fi
     fi
 done
 
