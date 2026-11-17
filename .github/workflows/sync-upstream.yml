@@ -16,6 +16,7 @@ env:
   BRANCH: chore/sync-upstream
   TITLE: 'chore: sync recipes with upstream conan-center-index'
   CONAN_VERSION: '2.34.0'
+  UPSTREAM_URL: https://github.com/conan-io/conan-center-index.git
 
 # The sync itself runs only git and our own scripts. Resolving the graph runs
 # upstream recipe code, so that job gets no secrets and hands back nothing but
@@ -23,33 +24,62 @@ env:
 # code.
 jobs:
   sync:
-    name: Sync
+    name: Check for upstream changes
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
     outputs:
-      result: ${{ steps.sync.outputs.result }}
-      upstream: ${{ steps.sync.outputs.upstream }}
-      # The later jobs sync this same master commit, not whatever master is by then.
-      master: ${{ steps.sync.outputs.master }}
+      # changed, current, or held while someone else has commits on the PR.
+      result: ${{ steps.check.outputs.result }}
+      # The later jobs sync these same commits, not whatever master is by then.
+      upstream: ${{ steps.check.outputs.upstream }}
+      master: ${{ steps.check.outputs.master }}
+      pr: ${{ steps.check.outputs.pr }}
+      lease: ${{ steps.check.outputs.lease }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: master
+          sparse-checkout: .sync
           persist-credentials: false
 
-      - name: Sync
-        id: sync
+      - name: Check
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "master=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          rc=0
-          scripts/sync-upstream.sh || rc=$?
-          case "$rc" in
-            0 | 11) echo "result=changed" >> "$GITHUB_OUTPUT" ;;
-            10) echo "result=current" >> "$GITHUB_OUTPUT" ;;
-            *) exit "$rc" ;;
-          esac
-          echo "upstream=$(cat .sync/upstream-commit)" >> "$GITHUB_OUTPUT"
+          upstream="$(git ls-remote "$UPSTREAM_URL" refs/heads/master | cut -f1)"
+          [ -n "$upstream" ] || { echo "::error::cannot read upstream master"; exit 1; }
+          echo "upstream=$upstream" >> "$GITHUB_OUTPUT"
+          if [ "$upstream" = "$(tr -d '[:space:]' < .sync/upstream-commit)" ]; then
+            echo "result=current" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # The branch head before the check below, so the push in the last job cannot
+          # overwrite a commit that lands after it.
+          echo "lease=$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)" >> "$GITHUB_OUTPUT"
+          # Only a pull request from this repository's own branch, never a fork's.
+          pr="$(gh api "repos/$GITHUB_REPOSITORY/pulls?head=$GITHUB_REPOSITORY_OWNER:$BRANCH&state=open" \
+            --jq '.[0] | select(.) | "\(.number) \(.user.type) \(.user.login)"')"
+          if [ -n "$pr" ]; then
+            read -r number type author <<< "$pr"
+            echo "pr=$number" >> "$GITHUB_OUTPUT"
+            # The workflow's app opened the PR; a commit by anyone else is a human's.
+            others=""
+            if [ "$type" = Bot ]; then
+              others="$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$number/commits" \
+                --jq '.[] | .author.login // "(unlinked)"' | grep -vxF "$author" || true)"
+            fi
+            if [ "$type" != Bot ] || [ -n "$others" ]; then
+              echo "::warning::#$number has commits by someone else; leaving it alone until it is merged or closed"
+              echo "result=held" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "result=changed" >> "$GITHUB_OUTPUT"
 
   graph:
     name: Resolve the dependency graph
@@ -163,31 +193,19 @@ jobs:
           GH_TOKEN: ${{ steps.app.outputs.token }}
           APP_SLUG: ${{ steps.app.outputs.app-slug }}
           RESULT: ${{ steps.sync.outputs.result }}
+          PR: ${{ needs.sync.outputs.pr }}
+          LEASE: ${{ needs.sync.outputs.lease }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           bot="${APP_SLUG}[bot]"
           email="$(gh api "/users/$bot" --jq .id)+$bot@users.noreply.github.com"
 
-          # The branch head as seen now, so the push below cannot overwrite a commit
-          # that lands after the check.
-          lease="$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)"
-          # Only a pull request from this repository's own branch, never a fork's.
-          pr="$(gh api "repos/$GITHUB_REPOSITORY/pulls?head=$GITHUB_REPOSITORY_OWNER:$BRANCH&state=open" \
-            --jq '.[0].number // empty')"
-          if [ -n "$pr" ]; then
-            others="$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$pr/commits" \
-              --jq '.[] | .author.login // "(unlinked)"' | grep -vxF "$bot" || true)"
-            if [ -n "$others" ]; then
-              echo "::warning::#$pr has commits by someone else; leaving it alone until it is merged or closed"
-              exit 0
-            fi
-          fi
-
           git config user.name "$bot"
           git config user.email "$email"
           git commit -q -s -m "$TITLE" -m "Upstream: conan-io/conan-center-index@$(cat .sync/upstream-commit)"
           gh auth setup-git
-          git push -q --force-with-lease="refs/heads/$BRANCH:$lease" origin "HEAD:refs/heads/$BRANCH"
+          # The sync job checked the PR at this head. If anyone pushed since, this fails.
+          git push -q --force-with-lease="refs/heads/$BRANCH:$LEASE" origin "HEAD:refs/heads/$BRANCH"
 
           {
             head -c 50000 "$RUNNER_TEMP/report.md"
@@ -228,16 +246,16 @@ jobs:
           } > "$RUNNER_TEMP/body.md"
           cat "$RUNNER_TEMP/body.md" >> "$GITHUB_STEP_SUMMARY"
 
-          if [ -z "$pr" ]; then
+          if [ -z "$PR" ]; then
             draft=""
             [ "$RESULT" = clean ] || draft=--draft
             gh pr create --base master --head "$BRANCH" --title "$TITLE" --body-file "$RUNNER_TEMP/body.md" $draft
           else
-            gh pr edit "$pr" --title "$TITLE" --body-file "$RUNNER_TEMP/body.md"
-            is_draft="$(gh pr view "$pr" --json isDraft --jq .isDraft)"
+            gh pr edit "$PR" --title "$TITLE" --body-file "$RUNNER_TEMP/body.md"
+            is_draft="$(gh pr view "$PR" --json isDraft --jq .isDraft)"
             if [ "$RESULT" = clean ] && [ "$is_draft" = true ]; then
-              gh pr ready "$pr"
+              gh pr ready "$PR"
             elif [ "$RESULT" != clean ] && [ "$is_draft" = false ]; then
-              gh pr ready "$pr" --undo
+              gh pr ready "$PR" --undo
             fi
           fi
