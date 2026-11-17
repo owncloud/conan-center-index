@@ -179,8 +179,8 @@ upstream arrive here on the next resync.
 
 Changes to the four ownCloud-only recipes or to the plumbing are made
 here by pull request against `master`. Commits must be signed and DCO signed-off
-(`git commit -S -s`), and commit subjects and PR titles follow
-[Conventional Commits](https://www.conventionalcommits.org/).
+(`git commit -S -s`); only the sync workflow's own commit is unsigned, see above. Commit
+subjects and PR titles follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 - [AGENTS.md](AGENTS.md) - guidance for AI coding agents working in this repository
 - [SUPPORT.md](SUPPORT.md) - where to ask questions and which tracker to use

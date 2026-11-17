@@ -249,7 +249,11 @@ jobs:
           [ "$(git ls-remote origin refs/heads/master | cut -f1)" = "$MASTER" ] \
             || { echo "::error::master moved since the sync job; run again"; exit 1; }
           bot="${APP_SLUG}[bot]"
-          echo "identity=$bot <$(gh api "/users/$bot" --jq .id)+$bot@users.noreply.github.com>" >> "$GITHUB_OUTPUT"
+          # The noreply address links the commit to the app; a wrong one would make
+          # the next run take the app's own commit for someone else's.
+          id="$(gh api "/users/$bot" --jq .id)"
+          case "$id" in '' | *[!0-9]*) echo "::error::no user id for $bot"; exit 1 ;; esac
+          echo "identity=$bot <$id+$bot@users.noreply.github.com>" >> "$GITHUB_OUTPUT"
 
       # The organisation's way to open bot pull requests (see owncloud/reusable-workflows).
       # It commits the whole worktree as the app, puts that commit onto master and
@@ -274,7 +278,7 @@ jobs:
           committer: ${{ steps.check.outputs.identity }}
           signoff: true
           delete-branch: true
-          # Only on create; an update is handled below.
+          # Applies on create only; the next step sets it on every later run.
           draft: ${{ steps.sync.outputs.result != 'clean' }}
 
       - name: Set the draft state

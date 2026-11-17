@@ -8,7 +8,8 @@ Scans the root conanfile.py, if there is one, and the conanfile.py of each recip
 as method calls or class attributes, and looks each literal reference up in
 recipes/<name>/config.yml. A reference built at runtime is listed as not
 checked. Pins inside upstream recipes are not scanned here; the sync
-workflow's conan graph info covers those.
+workflow's conan graph info covers those only while there is a root
+conanfile.py to resolve, so without one nothing checks them.
 Upstream keeps only the newest patch release per minor, so a resync routinely
 removes a version that is pinned here; for those, the newest surviving version
 of the same major.minor is suggested. Plain version ranges (">=a <b") are
