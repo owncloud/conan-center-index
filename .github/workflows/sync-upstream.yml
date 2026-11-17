@@ -16,10 +16,11 @@ env:
   BRANCH: chore/sync-upstream
   TITLE: 'chore: sync recipes with upstream conan-center-index'
   UPSTREAM_URL: https://github.com/conan-io/conan-center-index.git
-  # The owncloud-conan-bot GitHub App (contents and pull requests write). Its slug
-  # and client ID are public; only its private key is a secret.
+  # The owncloud-conan-bot GitHub App (contents and pull requests write). Its slug,
+  # client ID and bot user ID are public; only its private key is a secret.
   APP_SLUG: owncloud-conan-bot
   APP_CLIENT_ID: Iv23liMkHVRgV0tcaYoC
+  APP_USER_ID: '358009769'
 
 # Only git and our own scripts run here, never upstream recipe code, and the
 # app token exists only in the last job.
@@ -86,7 +87,8 @@ jobs:
     # only together with a result check for each, or a failed job would let this run.
     if: needs.sync.outputs.result == 'changed'
     runs-on: ubuntu-latest
-    # Holds the app's secrets; restrict its deployment branches to master.
+    # The environment holds the app's private key and only deploys from master, so no
+    # other branch's workflow can mint the app's token.
     environment: sync-upstream
     permissions:
       contents: read
@@ -95,6 +97,14 @@ jobs:
         with:
           ref: ${{ needs.sync.outputs.master }}
           persist-credentials: false
+
+      # Before the sync, so that a missing key fails in seconds.
+      - name: Check the app key
+        env:
+          KEY_SET: ${{ secrets.SYNC_APP_PRIVATE_KEY != '' }}
+        run: |
+          [ "$KEY_SET" = true ] \
+            || { echo "::error::add the app's private key as SYNC_APP_PRIVATE_KEY of the sync-upstream environment"; exit 1; }
 
       - name: Sync
         id: sync
@@ -133,14 +143,13 @@ jobs:
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           client-id: ${{ env.APP_CLIENT_ID }}
-          private-key: ${{ secrets.CONAN_APP_PRIVATE_KEY }}
+          private-key: ${{ secrets.SYNC_APP_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
 
       - name: Check the branch
         id: check
         env:
-          GH_TOKEN: ${{ steps.app.outputs.token }}
           TOKEN_APP_SLUG: ${{ steps.app.outputs.app-slug }}
           LEASE: ${{ needs.sync.outputs.lease }}
           MASTER: ${{ needs.sync.outputs.master }}
@@ -155,12 +164,10 @@ jobs:
             || { echo "::error::$BRANCH moved since the check (${LEASE:-none} -> ${head:-none}); run again"; exit 1; }
           [ "$(git ls-remote origin refs/heads/master | cut -f1)" = "$MASTER" ] \
             || { echo "::error::master moved since the sync job; run again"; exit 1; }
+          # The noreply address links the commit to the app, so the next run knows it
+          # for the app's own.
           bot="${APP_SLUG}[bot]"
-          # The noreply address links the commit to the app; a wrong one would make
-          # the next run take the app's own commit for someone else's.
-          id="$(gh api "/users/$bot" --jq .id)"
-          case "$id" in '' | *[!0-9]*) echo "::error::no user id for $bot"; exit 1 ;; esac
-          echo "identity=$bot <$id+$bot@users.noreply.github.com>" >> "$GITHUB_OUTPUT"
+          echo "identity=$bot <$APP_USER_ID+$bot@users.noreply.github.com>" >> "$GITHUB_OUTPUT"
 
       # The organisation's way to open bot pull requests (see owncloud/reusable-workflows).
       # It commits the whole worktree as the app, puts that commit onto master and
