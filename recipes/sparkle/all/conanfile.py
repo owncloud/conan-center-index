@@ -2,6 +2,7 @@ from conan import ConanFile
 from conan.errors import ConanInvalidConfiguration
 from conan.tools.apple import to_apple_arch
 from conan.tools.files import get, copy
+from conan.tools.scm import Version
 import glob
 import os
 import shlex
@@ -25,12 +26,20 @@ class sparkleRecipe(ConanFile):
     def _configuration(self):
         return "Debug" if self.settings.build_type == "Debug" else "Release"
 
+    @property
+    def _archs(self):
+        # A universal arch=armv8|x86_64 becomes one fat framework, ARCHS="arm64 x86_64".
+        return str(self.settings.arch).split("|")
+
     def validate(self):
         if self.settings.os != "Macos":
             raise ConanInvalidConfiguration("Sparkle is a macOS framework")
-        # One macOS arch per package; a universal arch=armv8|x86_64 is built per arch instead.
-        if str(self.settings.arch) not in ("armv8", "x86_64"):
-            raise ConanInvalidConfiguration(f"Sparkle builds for macOS armv8 or x86_64, not arch={self.settings.arch}")
+        if any(arch not in ("armv8", "x86_64") for arch in self._archs):
+            raise ConanInvalidConfiguration(f"Sparkle builds for macOS armv8 and x86_64, not arch={self.settings.arch}")
+        # Sparkle's own MACOSX_DEPLOYMENT_TARGET; os.version overrides it in build().
+        os_version = self.settings.get_safe("os.version")
+        if os_version and Version(os_version) < "10.13":
+            raise ConanInvalidConfiguration(f"Sparkle {self.version} needs macOS 10.13 or later, not os.version={os_version}")
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
@@ -45,7 +54,7 @@ class sparkleRecipe(ConanFile):
             "-scheme Sparkle",
             f"-configuration {self._configuration}",
             f"-derivedDataPath {shlex.quote(os.path.join(self.build_folder, 'dd'))}",
-            f"ARCHS={to_apple_arch(self)}",
+            shlex.quote("ARCHS=" + " ".join(to_apple_arch(self, arch) for arch in self._archs)),
             "ONLY_ACTIVE_ARCH=NO",
             # A dSYM for Debug too, whose default (dwarf) leaves the debug info in the object files.
             "DEBUG_INFORMATION_FORMAT=dwarf-with-dsym",
