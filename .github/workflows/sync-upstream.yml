@@ -28,7 +28,9 @@ jobs:
     outputs:
       # changed, current, or held while someone else has commits on the branch.
       result: ${{ steps.check.outputs.result }}
-      # The pull-request job syncs these same commits, not whatever master is by then.
+      # The pull-request job syncs the same upstream and master commits, not
+      # whatever master is by then, and refuses to push unless the branch head is
+      # still the lease.
       upstream: ${{ steps.check.outputs.upstream }}
       master: ${{ steps.check.outputs.master }}
       lease: ${{ steps.check.outputs.lease }}
@@ -79,6 +81,7 @@ jobs:
   pull-request:
     name: Open or update the pull request
     needs: sync
+    # sync is the only dependency; with more, add !cancelled() and check each result.
     if: needs.sync.outputs.result == 'changed'
     runs-on: ubuntu-latest
     # Holds the app's secrets; restrict its deployment branches to master.
