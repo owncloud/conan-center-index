@@ -154,10 +154,12 @@ of the path length limit.
   `.sync/owncloud-recipes` and re-applies `.sync/patches/`. Normally the weekly
   `sync-upstream.yml` workflow runs it.
 - **Upstream prunes old versions.** Upstream keeps only the newest patch release per minor,
-  so a resync routinely deletes the exact versions the root `conanfile.py` pins and the build
-  stops resolving. `scripts/check-pins.py` lists them, with the version to bump to, and the
-  sync PR stays a draft until they are bumped. Bump them on the sync PR's branch, because the
-  new versions often arrive only with that sync.
+  so a resync routinely deletes exact versions that are pinned, and builds stop resolving.
+  For the pins in the ownCloud recipes, `scripts/check-pins.py` lists them with the version to
+  bump to, and the sync PR stays a draft until they are bumped. Bump them on the sync PR's
+  branch, because the new versions often arrive only with that sync. Nothing here checks the
+  desktop client's `conanfile.py`: after every resync, re-check each `requires`/`tool_requires`
+  there against the relevant `recipes/<name>/config.yml` and bump the client as needed.
 - **`cmake` must stay below 4.** `recipes/extra-cmake-modules/all/conanfile.py` pins
   `cmake/[>=3.16 <4]`, so the desktop client cannot `tool_requires` a 4.x cmake.
 - **Do not check `.github/`, `CONTRIBUTING.md` or `README.md` out from upstream.** Upstream's

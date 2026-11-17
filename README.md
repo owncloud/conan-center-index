@@ -138,8 +138,7 @@ scripts/sync-upstream.sh --report "$TMPDIR/sync.md"   # stages the result, never
 the shared tree** rather than merging: it checks `recipes/` `docs/` `assets/`
 `.editorconfig` `.gitattributes` `LICENSE` out from upstream verbatim, then restores the
 ownCloud-only recipes and re-applies the local patches. `README.md`, `.gitignore`,
-`.config/`, `conanfile.py`, `.github/` and the community health files are never taken
-from upstream.
+`.config/`, `.github/` and the community health files are never taken from upstream.
 
 Its state lives in `.sync/`:
 
@@ -157,14 +156,18 @@ recipes and the patches, and fails if the result differs from the pull request's
 in-place edit of an upstream file cannot reach `master`, and neither can a patch committed
 without its result. Make it a required check.
 
-Upstream keeps only the newest patch release per minor, so a resync routinely deletes the
-exact versions `conanfile.py` pins. [`scripts/check-pins.py`](scripts/check-pins.py)
-lists every pin that no longer resolves, with the version to bump to, in the PR body. The
-workflow also adds `conan graph info` results for every profile, and opens the PR as a draft
-while any pin is broken. Push the bumps to the sync branch itself, because the new versions
-often arrive only with the sync; that also stops the workflow from replacing the branch.
-Then mark the PR ready. Note that `cmake` must stay below 4 while `extra-cmake-modules` pins
-`cmake/[>=3.16 <4]`.
+Upstream keeps only the newest patch release per minor, so a resync routinely deletes
+exact versions that are pinned. For the pins in the ownCloud recipes,
+[`scripts/check-pins.py`](scripts/check-pins.py) lists every one that no longer resolves,
+with the version to bump to, in the PR body, and the workflow opens the PR as a draft while
+any is broken. Push the bumps to the sync branch itself, because the new versions often
+arrive only with the sync; that also stops the workflow from replacing the branch. Then mark
+the PR ready.
+
+The desktop client's `conanfile.py` ([owncloud/client](https://github.com/owncloud/client))
+is not checked here. After every resync, re-check each `requires` and `tool_requires` there
+against the relevant `recipes/<name>/config.yml` and bump the client as needed. Note that
+`cmake` must stay below 4 while `extra-cmake-modules` pins `cmake/[>=3.16 <4]`.
 
 ## Contributing
 
