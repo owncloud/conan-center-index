@@ -28,14 +28,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read # to find the open sync PR
     outputs:
       # changed, current, or held while someone else has commits on the branch.
       result: ${{ steps.check.outputs.result }}
       # The later jobs sync these same commits, not whatever master is by then.
       upstream: ${{ steps.check.outputs.upstream }}
       master: ${{ steps.check.outputs.master }}
-      pr: ${{ steps.check.outputs.pr }}
       lease: ${{ steps.check.outputs.lease }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -61,22 +59,19 @@ jobs:
             exit 0
           fi
 
-          # The branch head before the check below, so the push in the last job cannot
-          # overwrite a commit that lands after it.
+          # The branch head before the check below; the last job refuses to push if
+          # it has moved since.
           lease="$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)"
           echo "lease=$lease" >> "$GITHUB_OUTPUT"
-          # Only a pull request from this repository's own branch, never a fork's.
-          pr="$(gh api "repos/$GITHUB_REPOSITORY/pulls?head=$GITHUB_REPOSITORY_OWNER:$BRANCH&state=open" \
-            --jq '.[0].number // empty')"
-          echo "pr=$pr" >> "$GITHUB_OUTPUT"
           if [ -n "$lease" ]; then
-            # A commit on the branch that the app did not both author and commit (an
-            # amend or rebase keeps the author) holds the sync, whether or not a PR is
-            # open; the branch is deleted on merge. A failed call fails the job rather
-            # than reading as "no one else".
+            # A commit on the branch that the app did not author, or that was not
+            # committed through the API (committer web-flow) as the app's are, holds the
+            # sync: an amend or rebase keeps the author but not the committer. That
+            # applies whether or not a PR is open; the branch is deleted on merge. A
+            # failed call fails the job rather than reading as "no one else".
             others="$(gh api "repos/$GITHUB_REPOSITORY/compare/$master...$lease" \
               | jq -r --arg bot "${SYNC_APP_SLUG}[bot]" \
-                '.commits[] | select(.author.login != $bot or .committer.login != $bot) | .sha')"
+                '.commits[] | select(.author.login != $bot or .committer.login != "web-flow") | .sha')"
             if [ -n "$others" ]; then
               echo "::warning::$BRANCH has commits by someone else; leaving it alone until it is merged or deleted"
               echo "result=held" >> "$GITHUB_OUTPUT"
@@ -180,41 +175,10 @@ jobs:
           name: graph-report
           path: ${{ runner.temp }}/graph
 
-      # An app token rather than GITHUB_TOKEN: a pull request pushed with
-      # GITHUB_TOKEN does not trigger workflows, so the required checks would
-      # never run on it.
-      - name: Create app token
-        id: app
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
-        with:
-          client-id: ${{ secrets.SYNC_APP_CLIENT_ID }}
-          private-key: ${{ secrets.SYNC_APP_PRIVATE_KEY }}
-          permission-contents: write
-          permission-pull-requests: write
-
-      - name: Open or update the pull request
+      - name: Write the pull request body
         env:
-          GH_TOKEN: ${{ steps.app.outputs.token }}
-          APP_SLUG: ${{ steps.app.outputs.app-slug }}
-          RESULT: ${{ steps.sync.outputs.result }}
-          PR: ${{ needs.sync.outputs.pr }}
-          LEASE: ${{ needs.sync.outputs.lease }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SYNC_APP_SLUG: ${{ vars.SYNC_APP_SLUG }}
         run: |
-          # The sync job told the app's commits from others' by this name.
-          [ "$APP_SLUG" = "$SYNC_APP_SLUG" ] \
-            || { echo "::error::SYNC_APP_SLUG is $SYNC_APP_SLUG, but the app is $APP_SLUG"; exit 1; }
-          bot="${APP_SLUG}[bot]"
-          email="$(gh api "/users/$bot" --jq .id)+$bot@users.noreply.github.com"
-
-          git config user.name "$bot"
-          git config user.email "$email"
-          git commit -q -s -m "$TITLE" -m "Upstream: conan-io/conan-center-index@$(cat .sync/upstream-commit)"
-          gh auth setup-git
-          # The sync job checked the PR at this head. If anyone pushed since, this fails.
-          git push -q --force-with-lease="refs/heads/$BRANCH:$LEASE" origin "HEAD:refs/heads/$BRANCH"
-
           {
             head -c 50000 "$RUNNER_TEMP/report.md"
             printf '\n## Dependency graph\n\n'
@@ -254,16 +218,69 @@ jobs:
           } > "$RUNNER_TEMP/body.md"
           cat "$RUNNER_TEMP/body.md" >> "$GITHUB_STEP_SUMMARY"
 
-          if [ -z "$PR" ]; then
-            draft=""
-            [ "$RESULT" = clean ] || draft=--draft
-            gh pr create --base master --head "$BRANCH" --title "$TITLE" --body-file "$RUNNER_TEMP/body.md" $draft
-          else
-            gh pr edit "$PR" --title "$TITLE" --body-file "$RUNNER_TEMP/body.md"
-            is_draft="$(gh pr view "$PR" --json isDraft --jq .isDraft)"
-            if [ "$RESULT" = clean ] && [ "$is_draft" = true ]; then
-              gh pr ready "$PR"
-            elif [ "$RESULT" != clean ] && [ "$is_draft" = false ]; then
-              gh pr ready "$PR" --undo
-            fi
+      # An app token rather than GITHUB_TOKEN: a pull request pushed with
+      # GITHUB_TOKEN does not trigger workflows, so the required checks would
+      # never run on it.
+      - name: Create app token
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.SYNC_APP_CLIENT_ID }}
+          private-key: ${{ secrets.SYNC_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Check the branch
+        id: check
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+          LEASE: ${{ needs.sync.outputs.lease }}
+          SYNC_APP_SLUG: ${{ vars.SYNC_APP_SLUG }}
+        run: |
+          # The sync job told the app's commits from others' by this name.
+          [ "$APP_SLUG" = "$SYNC_APP_SLUG" ] \
+            || { echo "::error::SYNC_APP_SLUG is $SYNC_APP_SLUG, but the app is $APP_SLUG"; exit 1; }
+          # The action below force-pushes and takes no lease, so make sure nobody has
+          # pushed since the sync job checked the branch.
+          head="$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)"
+          [ "$head" = "$LEASE" ] \
+            || { echo "::error::$BRANCH moved since the check (${LEASE:-none} -> ${head:-none}); run again"; exit 1; }
+          bot="${APP_SLUG}[bot]"
+          echo "signoff=$bot <$(gh api "/users/$bot" --jq .id)+$bot@users.noreply.github.com>" >> "$GITHUB_OUTPUT"
+
+      # The organisation's way to open bot pull requests (see owncloud/reusable-workflows).
+      # It commits the staged sync through the API, so GitHub signs the commit as the app.
+      - name: Open or update the pull request
+        id: cpr
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ steps.app.outputs.token }}
+          branch: ${{ env.BRANCH }}
+          base: master
+          title: ${{ env.TITLE }}
+          body-path: ${{ runner.temp }}/body.md
+          commit-message: |
+            ${{ env.TITLE }}
+
+            Upstream: conan-io/conan-center-index@${{ needs.sync.outputs.upstream }}
+
+            Signed-off-by: ${{ steps.check.outputs.signoff }}
+          sign-commits: true
+          delete-branch: true
+          # Only on create; an update is handled below.
+          draft: ${{ steps.sync.outputs.result != 'clean' }}
+
+      - name: Set the draft state
+        if: steps.cpr.outputs.pull-request-operation == 'updated'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          PR: ${{ steps.cpr.outputs.pull-request-number }}
+          RESULT: ${{ steps.sync.outputs.result }}
+        run: |
+          is_draft="$(gh pr view "$PR" --json isDraft --jq .isDraft)"
+          if [ "$RESULT" = clean ] && [ "$is_draft" = true ]; then
+            gh pr ready "$PR"
+          elif [ "$RESULT" != clean ] && [ "$is_draft" = false ]; then
+            gh pr ready "$PR" --undo
           fi

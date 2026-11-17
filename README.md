@@ -119,8 +119,12 @@ contents and pull requests on this repository. Its client ID and private key go 
 secrets `SYNC_APP_CLIENT_ID` and `SYNC_APP_PRIVATE_KEY` of the `sync-upstream` environment,
 whose deployment branches should be limited to `master`. Only the job that pushes and opens
 the PR can read them. The repository variable `SYNC_APP_SLUG` holds the app's slug, so the
-first job can tell the app's commits on the branch from anyone else's without the secrets. The job that resolves the graph runs upstream recipe code, so it gets
-no secrets and returns only a report.
+first job can tell the app's commits on the branch from anyone else's without the secrets.
+The job that resolves the graph runs upstream recipe code, so it gets no secrets and
+returns only a report. The PR itself is opened with
+[`peter-evans/create-pull-request`](https://github.com/peter-evans/create-pull-request), as
+in `owncloud/reusable-workflows`, which commits through the API so that GitHub signs the
+commit as the app.
 
 The workflow runs [`scripts/sync-upstream.sh`](scripts/sync-upstream.sh), which also works
 locally from a clean checkout:
