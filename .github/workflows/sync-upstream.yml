@@ -89,7 +89,15 @@ jobs:
             echo "| Profile | Result |"
             echo "| --- | --- |"
             for profile in .github/profiles/*.conanprofile; do
-              if conan graph info . -pr:h "$profile" -pr:b .github/profiles/ubuntu-latest-x86_64.conanprofile \
+              # The build profile is the one the desktop builds use, so that tool_requires
+              # gated on settings_build (msys2, nasm, ...) are resolved for each OS: the
+              # host profile itself, except that Intel macOS is cross-built on Apple
+              # silicon. graph info builds nothing, so any runner can do this.
+              build="$profile"
+              case "$profile" in
+                */macos-latest-x86_64.conanprofile) build=.github/profiles/macos-latest-armv8.conanprofile ;;
+              esac
+              if conan graph info . -pr:h "$profile" -pr:b "$build" \
                   -s build_type=Release --format=json > "$RUNNER_TEMP/graph.json" 2> "$RUNNER_TEMP/graph.err"; then
                 result="resolved, $(jq '.graph.nodes | length - 1' "$RUNNER_TEMP/graph.json") dependencies"
               else
