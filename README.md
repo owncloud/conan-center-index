@@ -110,7 +110,8 @@ The [Sync upstream](.github/workflows/sync-upstream.yml) workflow does this ever
 and on demand from the Actions tab. It opens, or updates, a single pull request from
 `chore/sync-upstream` titled `chore: sync recipes with upstream conan-center-index`. A human
 reviews and squash-merges it. If anyone else pushes a commit to that branch, the workflow
-stops updating the PR until it is merged or closed.
+stops updating it until the PR is merged, which deletes the branch. To let the workflow
+start over instead, delete the branch.
 
 The workflow authenticates as a GitHub App, because a pull request opened with the default
 `GITHUB_TOKEN` would not trigger the required checks. The app needs read and write access to

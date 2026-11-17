@@ -13,6 +13,11 @@ on:
 permissions:
   contents: read
 
+# Grouped per event, as in zizmor.yml; a newer push to a PR cancels the older run.
+concurrency:
+  group: upstream-tree-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   verify:
     # Everything under recipes/ docs/ assets/ except the ownCloud recipes is
