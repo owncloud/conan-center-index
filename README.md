@@ -165,8 +165,11 @@ the PR ready.
 
 The desktop client's `conanfile.py` ([owncloud/client](https://github.com/owncloud/client))
 is not checked here. After every resync, re-check each `requires` and `tool_requires` there
-against the relevant `recipes/<name>/config.yml` and bump the client as needed. Note that
-`cmake` must stay below 4 while `extra-cmake-modules` pins `cmake/[>=3.16 <4]`.
+against the relevant `recipes/<name>/config.yml` and bump the client as needed. Pins inside
+upstream recipes are not checked either: for the recipes the client uses, check that their
+`requires` and `tool_requires` still resolve, e.g. with `conan graph info` in the client
+checkout. Note that `cmake` must stay below 4 while `extra-cmake-modules` pins
+`cmake/[>=3.16 <4]`.
 
 ## Contributing
 

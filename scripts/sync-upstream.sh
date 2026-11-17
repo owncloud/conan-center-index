@@ -50,7 +50,6 @@ patches() {
 
 UPSTREAM_URL="${UPSTREAM_URL:-https://github.com/conan-io/conan-center-index.git}"
 UPSTREAM_WEB=https://github.com/conan-io/conan-center-index
-README_SYNC=https://github.com/owncloud/conan-center-index/blob/master/README.md#resyncing-with-upstream
 SHARED=(recipes docs assets .editorconfig .gitattributes LICENSE)
 
 report=/dev/null
@@ -219,6 +218,8 @@ changed="$(git diff --cached --name-only HEAD -- recipes | cut -d/ -f2 | sort -u
 added="$(git diff --cached --name-only --diff-filter=A HEAD -- 'recipes/*/config.yml' | cut -d/ -f2)"
 removed="$(git diff --cached --name-only --diff-filter=D HEAD -- 'recipes/*/config.yml' | cut -d/ -f2)"
 
+# The README of the repository this runs in, as the workflow sees it.
+readme_sync="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-owncloud/conan-center-index}/blob/master/README.md#resyncing-with-upstream"
 # What check-pins.py scans, for the report.
 checked="the ownCloud recipes"
 [ ! -f conanfile.py ] || checked="the root \`conanfile.py\` and $checked"
@@ -232,10 +233,6 @@ count() { if [ -z "$1" ]; then echo 0; else echo "$1" | wc -l | tr -d ' '; fi; }
     echo "Resyncs with [\`conan-io/conan-center-index@${new:0:9}\`]($UPSTREAM_WEB/commit/$new)."
     echo "Upstream changes since the last sync: [\`${old:0:9}...${new:0:9}\`]($UPSTREAM_WEB/compare/$old...$new)."
     echo
-    # Up front, so that cutting a long report short cannot drop it.
-    echo "> Only the pins in $checked are checked below, and nothing resolves the dependency"
-    echo "> graph. Check the rest by hand, see [Resyncing with upstream]($README_SYNC)."
-    echo
     if [ "$needs_human" = 1 ]; then
         echo "## Needs attention"
         echo
@@ -248,6 +245,11 @@ count() { if [ -z "$1" ]; then echo 0; else echo "$1" | wc -l | tr -d ' '; fi; }
         fi
         echo
     fi
+    # Before the long sections, so that cutting the report short cannot drop it.
+    echo "> Only the literal pins in $checked are checked (see the pinned versions below), and"
+    echo "> nothing resolves the dependency graph. By hand, check the desktop client's"
+    echo "> \`conanfile.py\` and the pins inside upstream recipes; see [Resyncing with upstream]($readme_sync)."
+    echo
     echo "## Recipes"
     echo
     echo "$changed recipes changed, $(count "$added") added, $(count "$removed") removed."

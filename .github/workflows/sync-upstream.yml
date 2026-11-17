@@ -28,9 +28,8 @@ jobs:
     outputs:
       # changed, current, or held while someone else has commits on the branch.
       result: ${{ steps.check.outputs.result }}
-      # The pull-request job syncs the same upstream and master commits, not
-      # whatever master is by then, and refuses to push unless the branch head is
-      # still the lease.
+      # The pull-request job syncs the same upstream and master commits, and refuses
+      # to push if master or the branch head (the lease) has moved since.
       upstream: ${{ steps.check.outputs.upstream }}
       master: ${{ steps.check.outputs.master }}
       lease: ${{ steps.check.outputs.lease }}
@@ -81,7 +80,8 @@ jobs:
   pull-request:
     name: Open or update the pull request
     needs: sync
-    # sync is the only dependency; with more, add !cancelled() and check each result.
+    # The implicit success() requires every job in needs to succeed. Add !cancelled()
+    # only together with a result check for each, or a failed job would let this run.
     if: needs.sync.outputs.result == 'changed'
     runs-on: ubuntu-latest
     # Holds the app's secrets; restrict its deployment branches to master.
@@ -113,12 +113,15 @@ jobs:
         run: |
           {
             head -c 50000 "$RUNNER_TEMP/report.md"
+            if [ "$(wc -c < "$RUNNER_TEMP/report.md")" -gt 50000 ]; then
+              printf '\n\n**The report was cut short here; the full one is in the [run summary](%s).**\n' "$RUN_URL"
+            fi
             echo
             echo "---"
             echo "Opened by the [Sync upstream]($RUN_URL) workflow, which replaces this branch every week while"
             echo "the pull request is open. A commit by anyone else stops that until it is merged, or the branch is deleted."
           } > "$RUNNER_TEMP/body.md"
-          cat "$RUNNER_TEMP/body.md" >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
 
       # An app token rather than GITHUB_TOKEN: a pull request pushed with
       # GITHUB_TOKEN does not trigger workflows, so the required checks would
