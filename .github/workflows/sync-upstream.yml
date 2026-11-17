@@ -16,10 +16,9 @@ env:
   BRANCH: chore/sync-upstream
   TITLE: 'chore: sync recipes with upstream conan-center-index'
   UPSTREAM_URL: https://github.com/conan-io/conan-center-index.git
-  # The owncloud-conan-bot GitHub App (contents and pull requests write). Its slug,
-  # client ID and bot user ID are public; only its private key is a secret.
+  # The owncloud-conan-bot GitHub App (contents and pull requests write). Its client
+  # ID and private key are secrets of the sync-upstream environment.
   APP_SLUG: owncloud-conan-bot
-  APP_CLIENT_ID: Iv23liMkHVRgV0tcaYoC
   APP_USER_ID: '358009769'
 
 # Only git and our own scripts run here, never upstream recipe code, and the
@@ -87,8 +86,8 @@ jobs:
     # only together with a result check for each, or a failed job would let this run.
     if: needs.sync.outputs.result == 'changed'
     runs-on: ubuntu-latest
-    # The environment holds the app's private key and only deploys from master, so no
-    # other branch's workflow can mint the app's token.
+    # The environment holds the app's client ID and private key and only deploys from
+    # master, so no other branch's workflow can mint the app's token.
     environment: sync-upstream
     permissions:
       contents: read
@@ -98,13 +97,13 @@ jobs:
           ref: ${{ needs.sync.outputs.master }}
           persist-credentials: false
 
-      # Before the sync, so that a missing key fails in seconds.
-      - name: Check the app key
+      # Before the sync, so that missing app secrets fail in seconds.
+      - name: Check the app secrets
         env:
-          KEY_SET: ${{ secrets.SYNC_APP_PRIVATE_KEY != '' }}
+          SECRETS_SET: ${{ secrets.SYNC_APP_CLIENT_ID != '' && secrets.SYNC_APP_PRIVATE_KEY != '' }}
         run: |
-          [ "$KEY_SET" = true ] \
-            || { echo "::error::add the app's private key as SYNC_APP_PRIVATE_KEY of the sync-upstream environment"; exit 1; }
+          [ "$SECRETS_SET" = true ] \
+            || { echo "::error::set SYNC_APP_CLIENT_ID and SYNC_APP_PRIVATE_KEY in the sync-upstream environment"; exit 1; }
 
       - name: Sync
         id: sync
@@ -142,7 +141,7 @@ jobs:
         id: app
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
-          client-id: ${{ env.APP_CLIENT_ID }}
+          client-id: ${{ secrets.SYNC_APP_CLIENT_ID }}
           private-key: ${{ secrets.SYNC_APP_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write

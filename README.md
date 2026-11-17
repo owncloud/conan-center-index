@@ -116,11 +116,11 @@ start over instead, delete the branch.
 The workflow authenticates as the `owncloud-conan-bot` GitHub App, which is installed on
 this repository with read and write access to contents and pull requests, because a pull
 request opened with the default `GITHUB_TOKEN` would not trigger the required checks. The
-app's slug, client ID and bot user ID are in the workflow. Its private key goes in the
-secret `SYNC_APP_PRIVATE_KEY` of the `sync-upstream` environment, whose deployment branches
-are limited to `master`, so that only the job that pushes and opens the PR can read it. Do
-not make it an organisation or repository secret: any branch's workflow could then mint the
-app's token. The PR itself is opened with
+app's slug and bot user ID are in the workflow. Its client ID and private key go in the
+secrets `SYNC_APP_CLIENT_ID` and `SYNC_APP_PRIVATE_KEY` of the `sync-upstream` environment,
+whose deployment branches are limited to `master`, so that only the job that pushes and
+opens the PR can read them. Do not make them organisation or repository secrets: any
+branch's workflow could then mint the app's token. The PR itself is opened with
 [`peter-evans/create-pull-request`](https://github.com/peter-evans/create-pull-request), as
 in `owncloud/reusable-workflows`. It pushes with git rather than signing through the API,
 whose rate limit a large sync would exceed; the squash merge onto `master` is signed.
