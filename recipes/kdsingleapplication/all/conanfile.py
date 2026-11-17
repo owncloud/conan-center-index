@@ -51,6 +51,8 @@ class KDSingleApplicationConan(ConanFile):
         # Upstream picks STATIC or SHARED from this alone, not from BUILD_SHARED_LIBS
         tc.cache_variables["KDSingleApplication_STATIC"] = not self.options.shared
         tc.cache_variables["BUILD_TRANSLATIONS"] = False
+        # Upstream builds its widget example by default, which needs Qt Widgets
+        tc.cache_variables["KDSingleApplication_EXAMPLES"] = False
         tc.generate()
 
         deps = CMakeDeps(self)
@@ -64,9 +66,12 @@ class KDSingleApplicationConan(ConanFile):
 
     def package(self):
         copy(self, "LICENSE.txt", self.source_folder, os.path.join(self.package_folder, "licenses"))
+        # LICENSE.txt only points here; upstream installs these under share/doc, which package() drops
+        copy(self, "*", os.path.join(self.source_folder, "LICENSES"), os.path.join(self.package_folder, "licenses"))
         cmake = CMake(self)
         cmake.install()
         rmdir(self, os.path.join(self.package_folder, "lib", "cmake"))
+        rmdir(self, os.path.join(self.package_folder, "share"))
 
     def package_info(self):
         self.cpp_info.libs = ["kdsingleapplication-qt6"]
