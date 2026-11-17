@@ -259,6 +259,9 @@ count() { if [ -z "$1" ]; then echo 0; else echo "$1" | wc -l | tr -d ' '; fi; }
     echo "## Pinned versions"
     echo
     echo "$pins"
+    echo
+    echo "Only the pins in the ownCloud recipes are checked, and nothing resolves the graph. Check"
+    echo "the desktop client's \`conanfile.py\` and the pins inside upstream recipes by hand."
 } > "$report"
 
 echo "sync-upstream: synced ${old:0:9} -> ${new:0:9}, $changed recipes changed"
