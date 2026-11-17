@@ -12,8 +12,9 @@ workflow's conan graph info covers those.
 Upstream keeps only the newest patch release per minor, so a resync routinely
 removes a version that is pinned here; for those, the newest surviving version
 of the same major.minor is suggested. Plain version ranges (">=a <b") are
-checked for at least one matching version; anything fancier is listed as not
-checked.
+checked for at least one matching version other than a pre-release, as Conan 2
+does by default; core.version_ranges:resolve_prereleases is not read. Anything
+fancier is listed as not checked.
 
 Prints a markdown table. Exit codes: 0 all pins resolve, 1 at least one does
 not, 2 on bad arguments, 3 if a file could not be read or parsed. Standard
@@ -21,6 +22,7 @@ library only, so it runs without Conan.
 """
 
 import ast
+import functools
 import re
 import sys
 import traceback
@@ -30,8 +32,42 @@ REQUIRE_METHODS = {"requires", "tool_requires", "build_requires", "test_requires
 RANGE_OPS = ("<=", ">=", "<", ">", "=")
 
 
+@functools.total_ordering
+class _Item:
+    """One dot-separated part of a version, compared the way Conan's Version does."""
+
+    def __init__(self, text):
+        self.value = int(text) if text.isdigit() else text
+
+    def __eq__(self, other):
+        return self.value == other.value
+
+    def __lt__(self, other):
+        try:
+            return self.value < other.value
+        except TypeError:
+            return str(self.value) < str(other.value)
+
+
+def _items(text):
+    items = [_Item(p) for p in text.split(".")] if text else []
+    while items and items[-1].value == 0:
+        items.pop()
+    return tuple(items)
+
+
+def is_prerelease(version):
+    return "-" in version.rsplit("+", 1)[0]
+
+
 def version_key(version):
-    return tuple((0, int(p), "") if p.isdigit() else (1, 0, p) for p in re.split(r"[.\-+]", version))
+    """Sorts like Conan 2's Version: trailing zeros do not count (1.4 == 1.4.0), and a
+    pre-release comes before its release (2.0.0-beta < 2.0.0)."""
+    main, plus, build = version.rpartition("+")
+    if not plus:
+        main, build = version, ""
+    main, pre_sep, pre = main.partition("-")
+    return (_items(main), 0 if pre_sep else 1, _items(pre), _items(build))
 
 
 def config_versions(recipes, name):
@@ -117,7 +153,8 @@ def check(ref, recipes):
         expr = version.strip("[]")
         if any(c in expr for c in ("||", "~", "^", ",")):
             return True, "range, not checked"
-        matching = [v for v in versions if satisfies(v, expr)]
+        # Conan 2 resolves a range to a pre-release only when asked to.
+        matching = [v for v in versions if not is_prerelease(v) and satisfies(v, expr)]
         if not matching:
             return False, f"**no version matches** (newest: `{newest}`)"
         return True, f"ok, resolves to `{max(matching, key=version_key)}`"
