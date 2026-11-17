@@ -62,9 +62,20 @@ class sparkleRecipe(ConanFile):
         if self.settings.get_safe("os.version"):
             args.append(f"MACOSX_DEPLOYMENT_TARGET={self.settings.os.version}")
         # The build phases are written for the system's BSD tools (link-tools.sh runs `ln -h`,
-        # set-git-version-info.sh `which -s`): /usr/bin and /bin first, so GNU coreutils on PATH
-        # (e.g. Homebrew's gnubin) don't shadow them.
-        self.run("PATH=/usr/bin:/bin:$PATH xcodebuild " + " ".join(args) + " build")
+        # set-git-version-info.sh `which -s`). Put just those two first, so GNU coreutils on PATH
+        # (e.g. Homebrew's gnubin) don't shadow them and the rest of the build environment still does.
+        bsd_tools = os.path.join(self.build_folder, "bsd-tools")
+        os.makedirs(bsd_tools, exist_ok=True)
+        for tool in ("/bin/ln", "/usr/bin/which"):
+            link = os.path.join(bsd_tools, os.path.basename(tool))
+            if not os.path.lexists(link):
+                os.symlink(tool, link)
+        # The sources are a tarball, not a checkout: stop set-git-version-info.sh's `git describe`
+        # from finding an enclosing repository (e.g. a CONAN_HOME inside a checkout) and stamping
+        # its tags into CFBundleShortVersionString.
+        ceiling = os.path.dirname(self.source_folder)
+        self.run(f"PATH={shlex.quote(bsd_tools)}:$PATH GIT_CEILING_DIRECTORIES={shlex.quote(ceiling)} "
+                 "xcodebuild " + " ".join(args) + " build")
 
     def package(self):
         copy(self, "LICENSE", src=self.source_folder, dst=os.path.join(self.package_folder, "licenses"))
