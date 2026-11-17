@@ -35,11 +35,18 @@
 # has; git's code otherwise.
 
 set -euo pipefail
-# Byte order for globs and sort, so the sync applies patches in the same order
-# as --verify, which takes them from git ls-tree.
 export LC_ALL=C
 
 die() { echo "sync-upstream: error: $*" >&2; exit 2; }
+
+# The patches in HEAD's .sync/patches/, NUL-separated, in git's byte order. The
+# sync and --verify both take this list, so they apply the same patches in the
+# same order.
+patches() {
+    git ls-tree -z --name-only HEAD -- .sync/patches/ | while IFS= read -r -d '' patch; do
+        case "$patch" in *.patch) printf '%s\0' "$patch" ;; esac
+    done
+}
 
 UPSTREAM_URL="${UPSTREAM_URL:-https://github.com/conan-io/conan-center-index.git}"
 UPSTREAM_WEB=https://github.com/conan-io/conan-center-index
@@ -93,11 +100,10 @@ verify() {
         fi
         git read-tree --prefix="recipes/$name/" "HEAD:recipes/$name"
     done
-    while IFS= read -r patch; do
-        case "$patch" in *.patch) ;; *) continue ;; esac
+    while IFS= read -r -d '' patch; do
         git show "HEAD:$patch" | git apply --cached - \
             || die "$patch does not apply to upstream $up; fix it, or resync"
-    done < <(git ls-tree --name-only HEAD -- .sync/patches/)
+    done < <(patches)
 
     differ="$(git diff --name-status "$(git write-tree)" HEAD -- "${SHARED[@]}")"
     if [ -n "$differ" ]; then
@@ -166,8 +172,7 @@ cp -R "$aside/." recipes/
 needs_human=0
 conflicted=0
 patch_rows=""
-for patch in .sync/patches/*.patch; do
-    [ -e "$patch" ] || continue
+while IFS= read -r -d '' patch; do
     if git apply --check "$patch" 2>/dev/null; then
         git apply "$patch"
         patch_rows="$patch_rows| \`$patch\` | applied |"$'\n'
@@ -177,22 +182,29 @@ for patch in .sync/patches/*.patch; do
     else
         needs_human=1
         conflicted=1
-        # If upstream deleted or moved every file the patch modifies, it is
-        # obsolete rather than in conflict. The pre-images are the "--- a/" and
-        # "rename from"/"copy from" paths; files it creates have none.
+        # If upstream deleted or moved every file the patch touches, it is
+        # obsolete rather than in conflict. A file it creates counts too: it
+        # exists only if that is why the patch failed. numstat -z gives each
+        # path as is, and for a rename "added<TAB>deleted<TAB>" then NUL, the old
+        # and the new path.
         targets=0
         present=0
-        while IFS= read -r path; do
+        while IFS= read -r -d '' record; do
+            path="${record#*$'\t'*$'\t'}"
+            if [ -z "$path" ]; then
+                IFS= read -r -d '' path
+                IFS= read -r -d '' _
+            fi
             targets=$((targets + 1))
             if [ -e "$path" ]; then present=$((present + 1)); fi
-        done < <(sed -n -e 's|^--- a/||p' -e 's/^rename from //p' -e 's/^copy from //p' "$patch" | sort -u)
+        done < <(git apply --numstat -z "$patch")
         if [ "$targets" -gt 0 ] && [ "$present" = 0 ]; then
             patch_rows="$patch_rows| \`$patch\` | **target gone upstream, not applied:** retarget it on this branch, or drop it by a PR on master that reverse-applies and deletes it |"$'\n'
         else
             patch_rows="$patch_rows| \`$patch\` | **conflict, not applied** |"$'\n'
         fi
     fi
-done
+done < <(patches)
 
 echo "$new" > .sync/upstream-commit
 git add -A
