@@ -147,7 +147,9 @@ of the path length limit.
 - **Never hand-edit an upstream recipe.** Send the fix upstream. If the build cannot wait,
   carry it as a patch in `.sync/patches/` (generated with `git diff`), never as an in-place
   edit: the next resync would overwrite it, so the Upstream tree check
-  (`scripts/sync-upstream.sh --verify`) fails every pull request that has one.
+  (`scripts/sync-upstream.sh --verify`) fails every pull request that has one. Commit the
+  patch together with its result in `recipes/`: the check also fails on a patch whose result
+  is missing, or on a result without its patch.
 - **The Upstream tree check must be required, with up-to-date branches.** It checks a pull
   request against `master` as `master` was when the check ran. Once a sync PR merges and
   moves `.sync/upstream-commit`, an older green PR can still squash-merge cleanly and leave
