@@ -12,6 +12,12 @@ concurrency:
   group: sync-upstream
   cancel-in-progress: false
 
+# Without an explicit shell, run steps get bash -e but not -o pipefail, and a
+# failed gh api or ls-remote piped into jq or cut would read as empty.
+defaults:
+  run:
+    shell: bash
+
 env:
   BRANCH: chore/sync-upstream
   TITLE: 'chore: sync recipes with upstream conan-center-index'
@@ -66,8 +72,8 @@ jobs:
           if [ -n "$lease" ]; then
             # A commit on the branch that the app did not both author and commit (an
             # amend or rebase keeps the author) holds the sync, whether or not a PR is
-            # open; the branch is deleted on merge. A failed call fails the job rather
-            # than reading as "no one else".
+            # open; the branch is deleted on merge. With pipefail (see defaults), a
+            # failed call fails the job rather than reading as "no one else".
             others="$(gh api "repos/$GITHUB_REPOSITORY/compare/$master...$lease" \
               | jq -r --arg bot "${APP_SLUG}[bot]" \
                 '.commits[] | select(.author.login != $bot or .committer.login != $bot) | .sha')"
