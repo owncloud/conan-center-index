@@ -357,7 +357,7 @@ class QtConan(ConanFile):
             if is_apple_os(self):
                 self.requires("moltenvk/1.2.2")
         if self.options.with_glib:
-            self.requires("glib/2.78.3")
+            self.requires("glib/[>=2.78.3 <3]")
         if self.options.with_doubleconversion and not self.options.multiconfiguration:
             self.requires("double-conversion/3.3.0")
         if self.options.get_safe("with_freetype", False) and not self.options.multiconfiguration:
@@ -1308,7 +1308,11 @@ class QtConan(ConanFile):
         qt_quick_enabled = self.options.gui and self.options.qtshadertools
 
         if self.options.qtdeclarative:
-            _create_module("Qml", ["Network"])
+            # Header-only (QML_ELEMENT and friends); Qt's own Qml target links it PUBLIC
+            _create_module("QmlIntegration", [])
+            self.cpp_info.components["qtQmlIntegration"].libs = []
+            self.cpp_info.components["qtQmlIntegration"].libdirs = []
+            _create_module("Qml", ["Network", "QmlIntegration"])
             _add_build_module("qtQml", self._cmake_qt6_private_file("Qml"))
             _create_module("QmlModels", ["Qml"])
             self.cpp_info.components["qtQmlImportScanner"].set_property("cmake_target_name", "Qt6::QmlImportScanner")
