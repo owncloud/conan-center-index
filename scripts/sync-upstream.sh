@@ -29,8 +29,9 @@
 #
 # Needs git and python3. UPSTREAM_URL overrides the upstream repository.
 #
-# Exit codes: 0 synced or verified, 1 --verify found a difference or a
-# recorded commit that is not upstream's or goes back, 10 already
+# Exit codes: 0 synced or verified, 1 --verify found a difference, a patch
+# that does not apply, or a recorded commit that is not upstream's or goes
+# back, 10 already
 # up to date (nothing touched), 11 synced but a patch did not apply or a
 # pinned version is gone,
 # 2 on bad arguments, a dirty tree or ignored files in the way, an ownCloud
@@ -157,7 +158,9 @@ if [ "$verify" = 1 ]; then
 fi
 [ -z "$(git status --porcelain)" ] || die "the working tree is not clean"
 # The report is written last, after the shared tree is replaced and staged.
-{ : >> "$report"; } 2>/dev/null || die "cannot write the report to $report"
+# Checked without creating it, since git add -A would stage it in the tree.
+if [ -e "$report" ]; then [ -w "$report" ]; else [ -w "$(dirname "$report")" ]; fi \
+    || die "cannot write the report to $report"
 
 old="$(tr -d '[:space:]' < .sync/upstream-commit)"
 read_owncloud < .sync/owncloud-recipes
@@ -165,11 +168,15 @@ read_owncloud < .sync/owncloud-recipes
 # git status --porcelain skips ignored files, but the shared tree is deleted
 # wholesale below, so build output such as test_package/build/ would go too.
 # The ownCloud recipes are copied aside with theirs.
-# -z, or porcelain quotes unusual paths and the filter below misses them.
-ignored="$(git status --porcelain -z --ignored -- "${SHARED[@]}" | tr '\0' '\n' | sed -n 's/^!! //p')"
-for name in ${owncloud[@]+"${owncloud[@]}"}; do
-    ignored="$(printf '%s\n' "$ignored" | grep -v "^recipes/$name/" || true)"
-done
+# -z, since porcelain otherwise quotes unusual paths.
+ignored=""
+while IFS= read -r -d '' entry; do
+    case "$entry" in '!! '*) ;; *) continue ;; esac
+    for name in ${owncloud[@]+"${owncloud[@]}"}; do
+        case "${entry#!! }" in "recipes/$name/"*) continue 2 ;; esac
+    done
+    ignored="$ignored${entry#!! }"$'\n'
+done < <(git status --porcelain -z --ignored -- "${SHARED[@]}")
 [ -z "$ignored" ] || die "ignored files would be deleted, remove them first (git clean -fdX -- ${SHARED[*]}):"$'\n'"$ignored"
 
 # Shallow: only upstream's tree is needed, not its history.
@@ -222,7 +229,8 @@ while IFS= read -r -d '' patch; do
         # obsolete rather than in conflict. A file it creates counts too: it
         # exists only if that is why the patch failed. numstat -z gives each
         # path as is, but for a rename or copy only the new one, so the source
-        # comes from the patch's "rename from" and "copy from" lines.
+        # comes from the "rename from" and "copy from" lines of the patch's
+        # headers, which git C-quotes if the path is unusual.
         targets=0
         present=0
         while IFS= read -r -d '' path; do
@@ -232,7 +240,23 @@ while IFS= read -r -d '' patch; do
             git apply --numstat -z "$patch" | while IFS= read -r -d '' record; do
                 printf '%s\0' "${record#*$'\t'*$'\t'}"
             done
-            sed -n -e 's/^rename from //p' -e 's/^copy from //p' "$patch" | tr '\n' '\0'
+            python3 - "$patch" <<'EOF'
+import ast, sys
+header = False
+for line in open(sys.argv[1], "rb").read().split(b"\n"):
+    line = line.rstrip(b"\r")
+    if line.startswith(b"diff --git "):
+        header = True
+    elif line.startswith((b"--- ", b"+++ ", b"@@")):
+        header = False
+    elif header:
+        for key in (b"rename from ", b"copy from "):
+            if line.startswith(key):
+                path = line[len(key):]
+                if path.startswith(b'"'):
+                    path = ast.literal_eval("b" + path.decode("ascii"))
+                sys.stdout.buffer.write(path + b"\0")
+EOF
         )
         if [ "$targets" -gt 0 ] && [ "$present" = 0 ]; then
             patch_rows="$patch_rows| \`$patch\` | **target gone upstream, not applied:** retarget it on this branch, or drop it by a PR on master that reverse-applies and deletes it |"$'\n'
