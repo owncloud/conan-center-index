@@ -88,7 +88,7 @@ def config_versions(recipes, name):
                 break
             depth = len(line) - len(line.lstrip())
             indent = depth if indent is None else indent
-            m = re.match(r"^\s+['\"]?([^'\":\s]+)['\"]?:\s*$", line)
+            m = re.match(r"^\s+['\"]?([^'\":\s]+)['\"]?:\s*(#.*)?$", line)
             if depth == indent and m:
                 versions.append(m.group(1))
     return versions

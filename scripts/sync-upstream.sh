@@ -35,7 +35,8 @@
 # pinned version is gone,
 # 2 on bad arguments, a dirty tree or ignored files in the way, an ownCloud
 # recipe name that upstream now has too, or a shared path upstream no longer
-# has; git's code otherwise.
+# has; 3 if scripts/check-pins.py failed after the sync was staged; git's
+# code otherwise.
 
 set -euo pipefail
 export LC_ALL=C
@@ -73,7 +74,7 @@ read_owncloud() {
     owncloud=()
     while IFS= read -r name; do
         owncloud+=("$name")
-    done < <(sed 's/#.*//' | tr -s '[:blank:]' '\n' | grep -v '^$' || true)
+    done < <(sed 's/#.*//' | tr -s '[:space:]' '\n' | grep -v '^$' || true)
 }
 
 verify() {
@@ -134,7 +135,7 @@ verify() {
     done
     while IFS= read -r -d '' patch; do
         git show "HEAD:$patch" | git apply --cached - \
-            || die "$patch does not apply to upstream $up; fix it, or resync"
+            || { echo "sync-upstream: $patch does not apply to upstream $up; fix it, or resync" >&2; exit 1; }
     done < <(patches)
 
     differ="$(git diff --name-status "$(git write-tree)" HEAD -- "${SHARED[@]}")"
@@ -164,7 +165,8 @@ read_owncloud < .sync/owncloud-recipes
 # git status --porcelain skips ignored files, but the shared tree is deleted
 # wholesale below, so build output such as test_package/build/ would go too.
 # The ownCloud recipes are copied aside with theirs.
-ignored="$(git status --porcelain --ignored -- "${SHARED[@]}" | sed -n 's/^!! //p')"
+# -z, or porcelain quotes unusual paths and the filter below misses them.
+ignored="$(git status --porcelain -z --ignored -- "${SHARED[@]}" | tr '\0' '\n' | sed -n 's/^!! //p')"
 for name in ${owncloud[@]+"${owncloud[@]}"}; do
     ignored="$(printf '%s\n' "$ignored" | grep -v "^recipes/$name/" || true)"
 done
@@ -219,19 +221,19 @@ while IFS= read -r -d '' patch; do
         # If upstream deleted or moved every file the patch touches, it is
         # obsolete rather than in conflict. A file it creates counts too: it
         # exists only if that is why the patch failed. numstat -z gives each
-        # path as is, and for a rename "added<TAB>deleted<TAB>" then NUL, the old
-        # and the new path.
+        # path as is, but for a rename or copy only the new one, so the source
+        # comes from the patch's "rename from" and "copy from" lines.
         targets=0
         present=0
-        while IFS= read -r -d '' record; do
-            path="${record#*$'\t'*$'\t'}"
-            if [ -z "$path" ]; then
-                IFS= read -r -d '' path
-                IFS= read -r -d '' _
-            fi
+        while IFS= read -r -d '' path; do
             targets=$((targets + 1))
             if [ -e "$path" ]; then present=$((present + 1)); fi
-        done < <(git apply --numstat -z "$patch")
+        done < <(
+            git apply --numstat -z "$patch" | while IFS= read -r -d '' record; do
+                printf '%s\0' "${record#*$'\t'*$'\t'}"
+            done
+            sed -n -e 's/^rename from //p' -e 's/^copy from //p' "$patch" | tr '\n' '\0'
+        )
         if [ "$targets" -gt 0 ] && [ "$present" = 0 ]; then
             patch_rows="$patch_rows| \`$patch\` | **target gone upstream, not applied:** retarget it on this branch, or drop it by a PR on master that reverse-applies and deletes it |"$'\n'
         else
@@ -245,7 +247,7 @@ git add -A
 
 pins_rc=0
 pins="$(python3 scripts/check-pins.py)" || pins_rc=$?
-[ "$pins_rc" -le 1 ] || die "scripts/check-pins.py failed"
+[ "$pins_rc" -le 1 ] || { echo "sync-upstream: error: scripts/check-pins.py failed; the sync is staged" >&2; exit 3; }
 [ "$pins_rc" = 0 ] || needs_human=1
 
 changed="$(git diff --cached --name-only HEAD -- recipes | cut -d/ -f2 | sort -u | wc -l | tr -d ' ')"
