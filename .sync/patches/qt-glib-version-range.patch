@@ -1,5 +1,5 @@
 diff --git a/recipes/qt/6.x.x/conanfile.py b/recipes/qt/6.x.x/conanfile.py
-index b9db81dab..7042f9559 100644
+index 2360ea166..ad0c94ce1 100644
 --- a/recipes/qt/6.x.x/conanfile.py
 +++ b/recipes/qt/6.x.x/conanfile.py
 @@ -357,7 +357,7 @@ class QtConan(ConanFile):
