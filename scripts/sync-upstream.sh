@@ -155,6 +155,8 @@ if [ "$verify" = 1 ]; then
     exit 0
 fi
 [ -z "$(git status --porcelain)" ] || die "the working tree is not clean"
+# The report is written last, after the shared tree is replaced and staged.
+{ : >> "$report"; } 2>/dev/null || die "cannot write the report to $report"
 
 old="$(tr -d '[:space:]' < .sync/upstream-commit)"
 read_owncloud < .sync/owncloud-recipes

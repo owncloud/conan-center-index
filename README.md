@@ -130,7 +130,7 @@ locally from a clean checkout:
 
 ```bash
 git switch -c chore/sync-upstream-recipes master
-scripts/sync-upstream.sh --report "$TMPDIR/sync.md"   # stages the result, never commits
+scripts/sync-upstream.sh --report "${TMPDIR:-/tmp}/sync.md"   # stages the result, never commits
 ```
 
 `master` requires linear history and the repository squash-merges, so the sync **replaces
