@@ -29,6 +29,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # HEAD^ too: --verify refuses an upstream commit behind the one HEAD^
+          # records (the base branch's, in a pull request's merge commit).
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Compare with upstream

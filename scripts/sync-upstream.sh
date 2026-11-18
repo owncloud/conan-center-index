@@ -23,11 +23,14 @@
 # --verify rebuilds the shared tree from upstream, HEAD's ownCloud recipes and
 # HEAD's patches in a scratch index and compares it with HEAD, so an in-place
 # edit of an upstream file, or a patch committed without its result, fails.
+# It also fails if .sync/upstream-commit is not on upstream's master, or goes
+# back behind the commit that HEAD^ records, so it needs HEAD^ in the clone.
 # The "Upstream tree" check runs it on every pull request.
 #
 # Needs git and python3. UPSTREAM_URL overrides the upstream repository.
 #
-# Exit codes: 0 synced or verified, 1 --verify found a difference, 10 already
+# Exit codes: 0 synced or verified, 1 --verify found a difference or a
+# recorded commit that is not upstream's or goes back, 10 already
 # up to date (nothing touched), 11 synced but a patch did not apply or a
 # pinned version is gone,
 # 2 on bad arguments, a dirty tree or ignored files in the way, an ownCloud
@@ -74,14 +77,43 @@ read_owncloud() {
 }
 
 verify() {
-    local up path mode obj name patch differ
+    local up prev path mode obj name patch differ
     up="$(git show HEAD:.sync/upstream-commit | tr -d '[:space:]')"
     read_owncloud < <(git show HEAD:.sync/owncloud-recipes)
+    scratch="$(mktemp -d)"
+    trap 'rm -rf "$scratch"' EXIT
+
+    # The commit recorded before HEAD's: the base branch's in a pull request's
+    # merge checkout, the previous commit's on master. A root commit, or one
+    # before .sync/ existed, has none.
+    prev=""
+    if git rev-parse -q --verify 'HEAD^' >/dev/null; then
+        prev="$(git show HEAD^:.sync/upstream-commit 2>/dev/null | tr -d '[:space:]' || true)"
+    elif [ "$(git rev-parse --is-shallow-repository)" = true ]; then
+        die "HEAD^ is not in this shallow clone; fetch it too (fetch-depth: 2)"
+    fi
+
+    # GitHub serves any commit of the fork network through the upstream URL, so
+    # the recorded commit must be on upstream's master, and must not go back
+    # behind the one before it. Commits only, no trees, and in a repository of
+    # their own, because the fetch below makes this one shallow at $up.
+    git init -q --bare "$scratch/upstream"
+    git -C "$scratch/upstream" remote add upstream "$UPSTREAM_URL"
+    git -C "$scratch/upstream" fetch -q --filter=tree:0 --no-tags upstream master
+    if ! git -C "$scratch/upstream" merge-base --is-ancestor "$up" FETCH_HEAD 2>/dev/null; then
+        echo "sync-upstream: .sync/upstream-commit names $up, which is not on upstream master" >&2
+        exit 1
+    fi
+    if [ -n "$prev" ] && [ "$prev" != "$up" ] \
+        && ! git -C "$scratch/upstream" merge-base --is-ancestor "$prev" "$up" 2>/dev/null; then
+        echo "sync-upstream: .sync/upstream-commit goes back from ${prev:0:9} to ${up:0:9}; resync forward" >&2
+        echo "instead, and carry what the newer commit broke as a patch in .sync/patches/" >&2
+        exit 1
+    fi
+
     git fetch -q --depth=1 --no-tags "$UPSTREAM_URL" "$up"
 
     # A scratch index, so neither the real index nor the working tree changes.
-    scratch="$(mktemp -d)"
-    trap 'rm -rf "$scratch"' EXIT
     export GIT_INDEX_FILE="$scratch/index"
     for path in "${SHARED[@]}"; do
         case "$(git cat-file -t "$up:$path" 2>/dev/null || true)" in
