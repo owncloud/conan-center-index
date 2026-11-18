@@ -148,6 +148,12 @@ of the path length limit.
   carry it as a patch in `.sync/patches/` (generated with `git diff`), never as an in-place
   edit: the next resync would overwrite it, so the Upstream tree check
   (`scripts/sync-upstream.sh --verify`) fails every pull request that has one.
+- **The Upstream tree check must be required, with up-to-date branches.** It checks a pull
+  request against `master` as `master` was when the check ran. Once a sync PR merges and
+  moves `.sync/upstream-commit`, an older green PR can still squash-merge cleanly and leave
+  `master` failing `--verify`, and only the push run on `master` reports that, after the
+  fact. So the `master` ruleset must require "Upstream tree" with "Require branches to be up
+  to date before merging"; rebase a PR on `master` before merging it.
 - **Resync with `scripts/sync-upstream.sh`, not by merging.** `master` requires linear
   history, and the repository squash-merges, so a merge commit is neither pushable nor
   useful. The script replaces the shared tree with upstream's, restores the recipes listed in
