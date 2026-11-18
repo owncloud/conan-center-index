@@ -1,0 +1,75 @@
+diff --git a/recipes/extra-cmake-modules/all/conandata.yml b/recipes/extra-cmake-modules/all/conandata.yml
+index 27f9a5f7b..edbf00a1d 100644
+--- a/recipes/extra-cmake-modules/all/conandata.yml
++++ b/recipes/extra-cmake-modules/all/conandata.yml
+@@ -7,3 +7,6 @@ patches:
+     - patch_file: "patches/0001-fix-find_package-qt.patch"
+       patch_description: "fix find_package qt"
+       patch_type: "portability"
++    - patch_file: "patches/0002-relocatable-prefix.patch"
++      patch_description: "ECM_PREFIX from PACKAGE_PREFIX_DIR, no ECM-chosen default install prefix"
++      patch_type: "conan"
+diff --git a/recipes/extra-cmake-modules/all/patches/0002-relocatable-prefix.patch b/recipes/extra-cmake-modules/all/patches/0002-relocatable-prefix.patch
+new file mode 100644
+index 000000000..f4bb36cc4
+--- /dev/null
++++ b/recipes/extra-cmake-modules/all/patches/0002-relocatable-prefix.patch
+@@ -0,0 +1,37 @@
++Make the ECM package relocatable
++
++ECMConfig.cmake records the install prefix ECM was built with, and
++KDEInstallDirs makes it the default CMAKE_INSTALL_PREFIX of every
++consumer. In a Conan package that prefix is the build machine's package
++folder. Use PACKAGE_PREFIX_DIR, as ECM 5 did, and keep CMake's own
++default install prefix.
++
++diff --git a/ECMConfig.cmake.in b/ECMConfig.cmake.in
++index e11138306dfb..a518f953f84f 100644
++--- a/ECMConfig.cmake.in
+++++ b/ECMConfig.cmake.in
++@@ -6,7 +6,7 @@ set(ECM_MODULE_DIR "@PACKAGE_MODULES_INSTALL_DIR@")
++ 
++ set(ECM_KDE_MODULE_DIR "@PACKAGE_KDE_MODULES_INSTALL_DIR@")
++ 
++-set(ECM_PREFIX "@CMAKE_INSTALL_PREFIX@")
+++set(ECM_PREFIX "${PACKAGE_PREFIX_DIR}")
++ 
++ set(ECM_MODULE_PATH "${ECM_MODULE_DIR}" "${ECM_FIND_MODULE_DIR}" "${ECM_KDE_MODULE_DIR}")
++ 
++diff --git a/kde-modules/KDEInstallDirsCommon.cmake b/kde-modules/KDEInstallDirsCommon.cmake
++index cf266719e845..1530c041abe5 100644
++--- a/kde-modules/KDEInstallDirsCommon.cmake
+++++ b/kde-modules/KDEInstallDirsCommon.cmake
++@@ -224,11 +224,6 @@ if(APPLE)
++         BUNDLE_INSTALL_DIR)
++ endif()
++ 
++-# Only supported since cmake 3.7
++-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
++-    set(CMAKE_INSTALL_PREFIX "${ECM_PREFIX}" CACHE PATH "Install path prefix" FORCE)
++-endif()
++-
++ _define_absolute(EXECROOTDIR ""
++     "executables and libraries"
++     EXEC_INSTALL_PREFIX)
+diff --git a/recipes/extra-cmake-modules/all/test_package/CMakeLists.txt b/recipes/extra-cmake-modules/all/test_package/CMakeLists.txt
+index fa47b1a42..b0a4f8b4d 100644
+--- a/recipes/extra-cmake-modules/all/test_package/CMakeLists.txt
++++ b/recipes/extra-cmake-modules/all/test_package/CMakeLists.txt
+@@ -1,8 +1,15 @@
+-cmake_minimum_required(VERSION 3.1)
++cmake_minimum_required(VERSION 3.15)
+ project(test_package LANGUAGES CXX)
+ 
+ 
+ find_package(ECM REQUIRED NO_MODULE)
++# ECMConfig.cmake must derive ECM_PREFIX from its own location: an absolute build prefix
++# looks right on the build machine (Conan builds into the final package folder) and only
++# breaks once the package is downloaded somewhere else
++file(STRINGS "${ECM_DIR}/ECMConfig.cmake" _ecm_prefix_line REGEX "^set\\(ECM_PREFIX ")
++if(NOT _ecm_prefix_line MATCHES "^set\\(ECM_PREFIX \"\\\${PACKAGE_PREFIX_DIR}\"\\)$")
++    message(FATAL_ERROR "ECMConfig.cmake hard-codes ECM_PREFIX: ${_ecm_prefix_line}")
++endif()
+ list(APPEND CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
+ include(ECMGenerateHeaders)
+ 

@@ -65,18 +65,21 @@ These must be upstreamed and removed on the next resync:
 - `recipes/dbus/all/conanfile.py` — changed `meson/1.4.0` pin to
   `meson/[>=1.4.0 <2]` because upstream pruned meson/1.4.0.
   Upstream the fix to `conan-io/conan-center-index`.
-- `recipes/qt/6.x.x/conanfile.py` — header-only `qtQmlIntegration`
-  component, required by `qtQml`, so `<QtQmlIntegration>` and
+- `.sync/patches/qt-qmlintegration-module.patch` - `recipes/qt/6.x.x/conanfile.py`: a
+  header-only `qtQmlIntegration` component, required by `qtQml`, so `<QtQmlIntegration>` and
   `<qqmlintegration.h>` resolve.
   Upstream: [conan-io/conan-center-index#31476](https://github.com/conan-io/conan-center-index/pull/31476).
-- `recipes/qt/6.x.x/conanfile.py` — `glib/2.78.3` changed to
-  `glib/[>=2.78.3 <3]`, so qt's `with_glib` follows the glib the rest of
-  the graph resolves to (libsecret).
+- `.sync/patches/qt-glib-version-range.patch` - `recipes/qt/6.x.x/conanfile.py`: `glib/2.78.3`
+  changed to `glib/[>=2.78.3 <3]`, so qt's `with_glib` follows the glib the rest of the graph
+  resolves to (libsecret).
   Upstream: [conan-io/conan-center-index#31477](https://github.com/conan-io/conan-center-index/pull/31477).
-- `recipes/extra-cmake-modules/all/` — `patches/0002-relocatable-prefix.patch`
-  (`ECM_PREFIX` from `PACKAGE_PREFIX_DIR`, no ECM-chosen default install
-  prefix), its `conandata.yml` entry and the test_package check.
+- `.sync/patches/extra-cmake-modules-relocatable-prefix.patch` - `recipes/extra-cmake-modules/all/`:
+  adds `patches/0002-relocatable-prefix.patch` (`ECM_PREFIX` from `PACKAGE_PREFIX_DIR`, no
+  ECM-chosen default install prefix), its `conandata.yml` entry and the test_package check.
   Upstream: [conan-io/conan-center-index#31478](https://github.com/conan-io/conan-center-index/pull/31478).
+
+These three are carried as patches in `.sync/patches/`, generated with `git diff`, and their result
+is committed in `recipes/`. Change a patch and its result together.
 
 ## Development Conventions
 
