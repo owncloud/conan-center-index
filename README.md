@@ -19,7 +19,7 @@ maintained here. The intended local delta is four recipes with no upstream count
 | `kdsingleapplication` | 1.2.0, 1.1.0 |
 | `libregraphapi` | 1.0.4 |
 | `qtkeychain` | 0.15.0 |
-| `sparkle` | 2.7.0 (macOS only) |
+| `sparkle` | 2.9.6, 2.7.0 (macOS only) |
 
 Plus the ownCloud-specific plumbing: `.config/global.conf` and `.github/profiles/`. The
 desktop client's dependency versions and Qt options are pinned in the client's own

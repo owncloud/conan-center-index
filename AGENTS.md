@@ -54,7 +54,7 @@ These four have no upstream counterpart and are the entire intended local delta:
 - `recipes/kdsingleapplication/` - 1.2.0, 1.1.0
 - `recipes/libregraphapi/` - 1.0.4
 - `recipes/qtkeychain/` - 0.15.0
-- `recipes/sparkle/` - 2.7.0 (macOS only)
+- `recipes/sparkle/` - 2.9.6, 2.7.0 (macOS only)
 
 Everything else under `recipes/` is upstream content and should be byte-identical to upstream.
 
