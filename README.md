@@ -12,7 +12,8 @@ This is a **detached copy, not a GitHub fork.** It has no upstream parent, so Gi
 adding it as an ordinary git remote.
 
 Almost everything under `recipes/` is upstream content that is carried rather than
-maintained here. The intended local delta is four recipes with no upstream counterpart:
+maintained here. The intended local delta is four recipes with no upstream counterpart,
+plus the patches in `.sync/patches/` that are carried until upstream takes them:
 
 | Recipe | Versions |
 | --- | --- |
@@ -105,46 +106,70 @@ conan upload -r oc "*" -c
 
 ## Resyncing with upstream
 
-`master` requires linear history and the repository squash-merges, so **do not** resync with
-`git merge` - a merge commit cannot be pushed. Replace the shared tree instead:
+The [Sync upstream](.github/workflows/sync-upstream.yml) workflow does this every Monday,
+and on demand from the Actions tab. It opens, or updates, a single pull request from
+`chore/sync-upstream` titled `chore: sync recipes with upstream conan-center-index`. A human
+reviews and squash-merges it. If anyone else pushes a commit to that branch, the workflow
+stops updating it until the PR is merged, which deletes the branch. To let the workflow
+start over instead, delete the branch.
+
+The workflow authenticates as the `owncloud-conan-bot` GitHub App, which is installed on
+this repository with read and write access to contents and pull requests, because a pull
+request opened with the default `GITHUB_TOKEN` would not trigger the required checks. The
+app's slug and bot user ID are in the workflow. Its client ID and private key go in the
+secrets `SYNC_APP_CLIENT_ID` and `SYNC_APP_PRIVATE_KEY` of the `sync-upstream` environment,
+whose deployment branches are limited to `master`, so that only the job that pushes and
+opens the PR can read them. Do not make them organisation or repository secrets: any
+branch's workflow could then mint the app's token. The PR itself is opened with
+[`peter-evans/create-pull-request`](https://github.com/peter-evans/create-pull-request), as
+in `owncloud/reusable-workflows`. It pushes with git rather than signing through the API,
+whose rate limit a large sync would exceed; the squash merge onto `master` is signed.
+
+The workflow runs [`scripts/sync-upstream.sh`](scripts/sync-upstream.sh), which also works
+locally from a clean checkout:
 
 ```bash
-git remote add upstream https://github.com/conan-io/conan-center-index.git
-git fetch upstream master
 git switch -c chore/sync-upstream-recipes master
-
-# set the ownCloud-only recipes aside
-mkdir -p "$TMPDIR/oc-recipes"
-cp -R recipes/kdsingleapplication recipes/libregraphapi \
-      recipes/qtkeychain recipes/sparkle "$TMPDIR/oc-recipes/"
-
-# take upstream verbatim for everything shared
-rm -rf recipes docs assets
-git checkout upstream/master -- recipes docs assets .editorconfig .gitattributes LICENSE
-
-# restore the ownCloud-only recipes
-cp -R "$TMPDIR/oc-recipes/." recipes/
-git add -A
+scripts/sync-upstream.sh --report "${TMPDIR:-/tmp}/sync.md"   # stages the result, never commits
 ```
 
-Do **not** take `README.md`, `.gitignore`, `.config/`, `.github/profiles/` or the
-community health files from upstream, and leave `CONTRIBUTING.md`, `.github/ISSUE_TEMPLATE/`,
-`.github/PULL_REQUEST_TEMPLATE.md` and `.github/workflows/stale.yml` deleted.
+`master` requires linear history and the repository squash-merges, so the sync **replaces
+the shared tree** rather than merging: it checks `recipes/` `docs/` `assets/`
+`.editorconfig` `.gitattributes` `LICENSE` out from upstream verbatim, then restores the
+ownCloud-only recipes and re-applies the local patches. `README.md`, `.gitignore`,
+`.config/`, `.github/` and the community health files are never taken from upstream.
 
-Then check the delta is exactly what it should be:
+Its state lives in `.sync/`:
 
-```bash
-git diff --stat upstream/master -- recipes docs assets
-```
+- `.sync/upstream-commit` - the upstream commit of the last sync.
+- `.sync/owncloud-recipes` - the recipes that exist only here. The sync fails if upstream
+  gains a recipe with one of these names.
+- `.sync/patches/*.patch` - changes to upstream recipes that are carried until upstream
+  takes them. A patch that upstream has absorbed is deleted automatically. A patch that no
+  longer applies is reported, and the PR is opened as a draft.
 
-This must show **only** the four ownCloud recipe trees as additions. Anything else means an
-upstream recipe is still being patched locally, which should be sent upstream instead.
+The [Upstream tree](.github/workflows/upstream-tree.yml) check runs
+`scripts/sync-upstream.sh --verify` on every pull request, the sync PR included. It rebuilds
+the shared tree from the upstream commit in `.sync/upstream-commit`, the ownCloud-only
+recipes and the patches, and fails if the result differs from the pull request's tree. So an
+in-place edit of an upstream file cannot reach `master`, and neither can a patch committed
+without its result. Make it a required check.
 
-Upstream keeps only the newest patch release per minor, so a resync routinely deletes the
-exact versions the desktop client's `conanfile.py` pins. Re-check every `requires` and
-`tool_requires` there against the relevant `recipes/<name>/config.yml` afterwards and bump
-the client as needed. Note that `cmake` must
-stay below 4 while `extra-cmake-modules` pins `cmake/[>=3.16 <4]`.
+Upstream keeps only the newest patch release per minor, so a resync routinely deletes
+exact versions that are pinned. For the pins in the ownCloud recipes,
+[`scripts/check-pins.py`](scripts/check-pins.py) lists every one that no longer resolves,
+with the version to bump to, in the PR body, and the workflow opens the PR as a draft while
+any is broken. Push the bumps to the sync branch itself, because the new versions often
+arrive only with the sync; that also stops the workflow from replacing the branch. Then mark
+the PR ready.
+
+The desktop client's `conanfile.py` ([owncloud/client](https://github.com/owncloud/client))
+is not checked here. After every resync, re-check each `requires` and `tool_requires` there
+against the relevant `recipes/<name>/config.yml` and bump the client as needed. Pins inside
+upstream recipes are not checked either: for the recipes the client uses, check that their
+`requires` and `tool_requires` still resolve, e.g. with `conan graph info` in the client
+checkout. Note that `cmake` must stay below 4 while `extra-cmake-modules` pins
+`cmake/[>=3.16 <4]`.
 
 ## Contributing
 
@@ -156,8 +181,8 @@ upstream arrive here on the next resync.
 
 Changes to the four ownCloud-only recipes or to the plumbing are made
 here by pull request against `master`. Commits must be signed and DCO signed-off
-(`git commit -S -s`), and commit subjects and PR titles follow
-[Conventional Commits](https://www.conventionalcommits.org/).
+(`git commit -S -s`); only the sync workflow's own commit is unsigned, see above. Commit
+subjects and PR titles follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 - [AGENTS.md](AGENTS.md) - guidance for AI coding agents working in this repository
 - [SUPPORT.md](SUPPORT.md) - where to ask questions and which tracker to use

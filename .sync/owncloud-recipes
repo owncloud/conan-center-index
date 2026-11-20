@@ -1,0 +1,5 @@
+# Recipes that exist only here, never upstream; see "Resyncing with upstream" in README.md.
+kdsingleapplication
+libregraphapi
+qtkeychain
+sparkle

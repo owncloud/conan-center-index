@@ -22,9 +22,9 @@ obtainable prebuilt.
 - **Primary language(s):** Python (Conan recipes)
 - **Build system:** Conan 2
 - **Test framework:** per-recipe `test_package/` consumed by `conan create` / `conan test`
-- **CI system:** GitHub Actions, for PR hygiene only - PR title and Conventional Commits.
-  Nothing builds, tests or publishes a recipe: packages are built and published by hand;
-  see "Build & Test Commands" below.
+- **CI system:** GitHub Actions, for PR hygiene (PR title and Conventional Commits) and
+  the weekly upstream sync PR. Nothing builds, tests or publishes a recipe: packages are
+  built and published by hand; see "Build & Test Commands" below.
 - **License:** MIT, inherited from upstream (`LICENSE`, Copyright (c) 2019 Conan.io)
 
 ## Architecture & Key Paths
@@ -41,45 +41,51 @@ obtainable prebuilt.
   (HTTP timeout, system package manager mode)
 - `.github/profiles/` - Conan profiles, one per target platform:
   `macos-latest-armv8`, `macos-latest-x86_64`, `ubuntu-latest-x86_64`, `windows-latest-x86_64`
-- `.github/workflows/` - PR checks only: `lint-pr-title.yml` (PR title) and `commits.yml`
-  (Conventional Commits on every commit). No build workflow
+- `.github/workflows/` - PR checks `lint-pr-title.yml` (PR title), `commits.yml`
+  (Conventional Commits on every commit) and `upstream-tree.yml` (no in-place edits of
+  upstream files), plus `sync-upstream.yml`, which opens the weekly upstream sync PR. No
+  build workflow
+- `.sync/` - upstream sync state: the last synced upstream commit, the list of
+  ownCloud-only recipes and the patches carried against upstream recipes
+- `scripts/sync-upstream.sh` - the resync itself; `scripts/check-pins.py` - reports pins
+  that upstream has pruned
 - `docs/` - upstream's recipe authoring documentation, including `docs/adding_packages/` and
   `docs/code_of_conduct.md`
 - `assets/` - upstream's images
 
 ### ownCloud-only recipes
 
-These four have no upstream counterpart and are the entire intended local delta:
+These four have no upstream counterpart. With the patches below, they are the entire intended
+local delta:
 
 - `recipes/kdsingleapplication/` - 1.2.0, 1.1.0
 - `recipes/libregraphapi/` - 1.0.4
 - `recipes/qtkeychain/` - 0.15.0
 - `recipes/sparkle/` - 2.9.6, 2.7.0 (macOS only)
 
-Everything else under `recipes/` is upstream content and should be byte-identical to upstream.
+Everything else under `recipes/` is upstream content and should be byte-identical to upstream,
+except for the files the patches below touch.
 
 ### Local patches to upstream recipes
 
-These must be upstreamed and removed on the next resync:
+`.sync/patches/` is the source of truth: the sync re-applies each patch to the fresh
+upstream tree and deletes it once upstream has absorbed it. Each one should be upstreamed:
 
-- `recipes/dbus/all/conanfile.py` — changed `meson/1.4.0` pin to
-  `meson/[>=1.4.0 <2]` because upstream pruned meson/1.4.0.
-  Upstream the fix to `conan-io/conan-center-index`.
-- `.sync/patches/qt-qmlintegration-module.patch` - `recipes/qt/6.x.x/conanfile.py`: a
-  header-only `qtQmlIntegration` component, required by `qtQml`, so `<QtQmlIntegration>` and
+- `dbus-meson-version-range.patch` - `recipes/dbus/all/conanfile.py` pins `meson/1.4.0`,
+  which upstream pruned; changed to `meson/[>=1.4.0 <2]`. Upstream the fix to
+  `conan-io/conan-center-index`.
+- `qt-qmlintegration-module.patch` - `recipes/qt/6.x.x/conanfile.py`: a header-only
+  `qtQmlIntegration` component, required by `qtQml`, so `<QtQmlIntegration>` and
   `<qqmlintegration.h>` resolve.
   Upstream: [conan-io/conan-center-index#31476](https://github.com/conan-io/conan-center-index/pull/31476).
-- `.sync/patches/qt-glib-version-range.patch` - `recipes/qt/6.x.x/conanfile.py`: `glib/2.78.3`
-  changed to `glib/[>=2.78.3 <3]`, so qt's `with_glib` follows the glib the rest of the graph
-  resolves to (libsecret).
+- `qt-glib-version-range.patch` - `recipes/qt/6.x.x/conanfile.py`: `glib/2.78.3` changed to
+  `glib/[>=2.78.3 <3]`, so qt's `with_glib` follows the glib the rest of the graph resolves to
+  (libsecret).
   Upstream: [conan-io/conan-center-index#31477](https://github.com/conan-io/conan-center-index/pull/31477).
-- `.sync/patches/extra-cmake-modules-relocatable-prefix.patch` - `recipes/extra-cmake-modules/all/`:
-  adds `patches/0002-relocatable-prefix.patch` (`ECM_PREFIX` from `PACKAGE_PREFIX_DIR`, no
+- `extra-cmake-modules-relocatable-prefix.patch` - `recipes/extra-cmake-modules/all/`: adds
+  `patches/0002-relocatable-prefix.patch` (`ECM_PREFIX` from `PACKAGE_PREFIX_DIR`, no
   ECM-chosen default install prefix), its `conandata.yml` entry and the test_package check.
   Upstream: [conan-io/conan-center-index#31478](https://github.com/conan-io/conan-center-index/pull/31478).
-
-These three are carried as patches in `.sync/patches/`, generated with `git diff`, and their result
-is committed in `recipes/`. Change a patch and its result together.
 
 ## Development Conventions
 
@@ -89,7 +95,8 @@ is committed in `recipes/`. Change a patch and its result together.
   The repository squash-merges and takes the PR title as the commit subject, so the PR title
   must follow the same format.
 - **Checked on every PR:** the PR title (`lint-pr-title.yml`), and the Conventional Commits
-  format of *every* commit in the PR, not just the squash subject (`commits.yml`). DCO
+  format of *every* commit in the PR, not just the squash subject (`commits.yml`), and that
+  the shared tree matches upstream plus `.sync/` (`upstream-tree.yml`). DCO
   sign-off is checked by the DCO app, commit signatures by the org branch policy. Fix
   offending commits before pushing (`git commit --amend`, `git rebase --signoff`).
 - **Linear history:** the org default branch policy requires it. A merge commit cannot be
@@ -137,19 +144,29 @@ of the path length limit.
 
 ## Important Constraints
 
-- **Never hand-edit an upstream recipe.** The local delta is meant to be exactly the four
-  ownCloud-only recipes listed above. Patching an upstream recipe in place creates a conflict
-  that has to be re-resolved on every resync, and historically every such patch was later
-  merged upstream anyway and became dead weight. Send the fix upstream instead.
-- **Resync upstream by replacing the tree, not by merging.** `master` requires linear history,
-  and the repository squash-merges, so a merge commit is neither pushable nor useful. Set the
-  four ownCloud recipes aside, check `recipes/`, `docs/` and `assets/` out from
-  `upstream/master`, then restore them. Verify with
-  `git diff --stat upstream/master -- recipes docs assets`, which must show *only* those four
-  recipe trees as additions.
+- **Never hand-edit an upstream recipe.** Send the fix upstream. If the build cannot wait,
+  carry it as a patch in `.sync/patches/` (generated with `git diff`), never as an in-place
+  edit: the next resync would overwrite it, so the Upstream tree check
+  (`scripts/sync-upstream.sh --verify`) fails every pull request that has one. Commit the
+  patch together with its result in `recipes/`: the check also fails on a patch whose result
+  is missing, or on a result without its patch.
+- **The Upstream tree check must be required, with up-to-date branches.** It checks a pull
+  request against `master` as `master` was when the check ran. Once a sync PR merges and
+  moves `.sync/upstream-commit`, an older green PR can still squash-merge cleanly and leave
+  `master` failing `--verify`, and only the push run on `master` reports that, after the
+  fact. So the `master` ruleset must require "Upstream tree" with "Require branches to be up
+  to date before merging"; rebase a PR on `master` before merging it.
+- **Resync with `scripts/sync-upstream.sh`, not by merging.** `master` requires linear
+  history, and the repository squash-merges, so a merge commit is neither pushable nor
+  useful. The script replaces the shared tree with upstream's, restores the recipes listed in
+  `.sync/owncloud-recipes` and re-applies `.sync/patches/`. Normally the weekly
+  `sync-upstream.yml` workflow runs it.
 - **Upstream prunes old versions.** Upstream keeps only the newest patch release per minor,
-  so a resync routinely deletes the exact versions the desktop client's `conanfile.py` pins
-  and its build stops resolving. After every resync, re-check each `requires`/`tool_requires`
+  so a resync routinely deletes exact versions that are pinned, and builds stop resolving.
+  For the pins in the ownCloud recipes, `scripts/check-pins.py` lists them with the version to
+  bump to, and the sync PR stays a draft until they are bumped. Bump them on the sync PR's
+  branch, because the new versions often arrive only with that sync. Nothing here checks the
+  desktop client's `conanfile.py`: after every resync, re-check each `requires`/`tool_requires`
   there against the relevant `recipes/<name>/config.yml` and bump the client as needed.
 - **`cmake` must stay below 4.** `recipes/extra-cmake-modules/all/conanfile.py` pins
   `cmake/[>=3.16 <4]`, so the desktop client cannot `tool_requires` a 4.x cmake.
@@ -158,9 +175,9 @@ of the path length limit.
   README and contribution guidance here are ownCloud's.
 - **License:** MIT, inherited from upstream. Recipes describe third-party software and each
   declares its own upstream license in `conanfile.py`; do not change either.
-- **No build CI.** The PR checks only cover titles, commit messages and sign-off; nothing
-  verifies that a recipe resolves or builds. Any recipe or version change must be
-  built locally on the affected profiles before it is proposed, and the platforms that were
+- **No build CI.** The PR checks only cover titles, commit messages, sign-off and the
+  upstream tree; nothing verifies that a recipe resolves or builds. Any recipe or version
+  change must be built locally on the affected profiles before it is proposed, and the platforms that were
   not covered must be named explicitly in the PR.
 
 ## OSPO Policy Constraints
@@ -177,7 +194,9 @@ of the path length limit.
 
 ### Git Workflow
 - **Rebase policy**: Always rebase; never create merge commits. Use `git pull --rebase` and `git rebase` before pushing.
-- **Signed commits**: All commits **must** be PGP/GPG signed (`git commit -S -s`).
+- **Signed commits**: All commits **must** be PGP/GPG signed (`git commit -S -s`). The one
+  exception is the sync workflow's own commit on `chore/sync-upstream`, which is unsigned
+  by design; the squash merge, the only merge method here, is signed by GitHub.
 - **DCO sign-off**: Every commit needs a `Signed-off-by` line (`git commit -s`).
 - **Conventional Commits & Squash Merge**: Use the [Conventional Commits](https://www.conventionalcommits.org/) format where the repository enforces it. Many repos use squash merge, where the PR title becomes the commit message on the default branch — apply Conventional Commits format to PR titles as well. A reusable GitHub Actions workflow enforces this.
 
