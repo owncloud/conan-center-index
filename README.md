@@ -125,7 +125,8 @@ branch's workflow could then mint the app's token. The PR itself is opened with
 in `owncloud/reusable-workflows`. It pushes with git rather than signing through the API,
 whose rate limit a large sync would exceed. The workflow then re-creates that commit through
 the API as the app, from the tree already pushed, which GitHub signs: `master` requires
-signed commits, and an unsigned commit on the head branch blocks even a squash merge.
+signed commits, and an unsigned commit on the head branch blocks even a squash merge. If that
+step fails, the head stays unsigned until the workflow is run again.
 
 The workflow runs [`scripts/sync-upstream.sh`](scripts/sync-upstream.sh), which also works
 locally from a clean checkout:
