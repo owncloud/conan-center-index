@@ -1,0 +1,106 @@
+diff --git a/recipes/qt/6.x.x/conandata.yml b/recipes/qt/6.x.x/conandata.yml
+index 12d031be1..0fb83228c 100644
+--- a/recipes/qt/6.x.x/conandata.yml
++++ b/recipes/qt/6.x.x/conandata.yml
+@@ -43,6 +43,28 @@ sources:
+       - "https://ftp.jaist.ac.jp/pub/qtproject/archive/qt/6.11/6.11.3/single/qt-everywhere-src-6.11.3.tar.xz"
+       - "https://ftp.yz.yamagata-u.ac.jp/pub/qtproject/archive/qt/6.11/6.11.3/single/qt-everywhere-src-6.11.3.tar.xz"
+     sha256: "ad0112f2aef1b94b42a7ab653cebda2f7fc9ba88ef509ec456b17be80b0bfdab"
++  "6.10.3":
++    url:
++      - "https://download.qt.io/official_releases/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++      - "https://download.qt.io/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++      - "https://mirrors.ukfast.co.uk/sites/qt.io/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++      - "https://mirrors.20i.com/pub/qt.io/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++      - "https://ftp.nluug.nl/languages/qt/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++      - "https://mirror.netcologne.de/qtproject/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++      - "https://qt-mirror.dannhauer.de/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++      - "https://ftp.fau.de/qtproject/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++      - "https://mirrors.dotsrc.org/qtproject/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++      - "https://ftp.icm.edu.pl/packages/qt/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++      - "https://ftp.acc.umu.se/mirror/qt.io/qtproject/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++      - "https://www.nic.funet.fi/pub/mirrors/download.qt-project.org/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++      - "https://qt.mirror.constant.com/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++      - "https://mirrors.sau.edu.cn/qt/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++      - "https://mirrors.cloud.tencent.com/qt/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++      - "https://mirror.bjtu.edu.cn/qt/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++      - "https://mirrors.sjtug.sjtu.edu.cn/qt/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++      - "https://ftp.jaist.ac.jp/pub/qtproject/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++      - "https://ftp.yz.yamagata-u.ac.jp/pub/qtproject/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
++    sha256: "cbc81e726b0ff3c0cdb0219bf74545e91cec013c4a8503c20f93f83d73dff5d2"
+   "6.8.3":
+     url:
+       - "https://download.qt.io/official_releases/qt/6.8/6.8.3/single/qt-everywhere-src-6.8.3.tar.xz"
+@@ -77,3 +99,6 @@ patches:
+       "base_path": "qtwebengine/src/3rdparty"
+     - "patch_file": "patches/6.8.3-fix-macos-26.4.diff"
+       "base_path": "qtbase"
++  "6.10.3":
++    - "patch_file": "patches/6.10.3-fix-macos-26.4.diff"
++      "base_path": "qtbase"
+diff --git a/recipes/qt/6.x.x/patches/6.10.3-fix-macos-26.4.diff b/recipes/qt/6.x.x/patches/6.10.3-fix-macos-26.4.diff
+new file mode 100644
+index 000000000..102a214af
+--- /dev/null
++++ b/recipes/qt/6.x.x/patches/6.10.3-fix-macos-26.4.diff
+@@ -0,0 +1,47 @@
++Upstream PR: https://codereview.qt-project.org/c/qt/qtbase/+/725069
++From 2ec10404d477345a7d7e6506faa99aa08368ba66 Mon Sep 17 00:00:00 2001
++Date: Thu, 26 Mar 2026 07:09:43 +0100
++Subject: [PATCH] qyieldcpu: Fix compilation with macOS 26.4 SDK
++
++After updating to the macOS 26.4 SDK, qtbase fails to compile on
++Apple Silicon with an implicit function declaration error for
++__yield() in qyieldcpu.h. It appears that the SDK's Clang now
++reports __has_builtin(__yield) as true, but __yield() requires
++<arm_acle.h> for its declaration.
++
++The compiler's own __builtin_arm_yield intrinsic was already checked
++further down in the cascade. Moving it above the __yield check resolves
++the build failure, without unnecessarily pulling in the header.
++
++Fixes: QTBUG-145239
++Change-Id: I94b4d8f72385a4944c272ed7a66d249537a82e7d
++Reviewed-by: Tor Arne Vestbø <tor.arne.vestbo@qt.io>
++Reviewed-by: Fabian Kosmale <fabian.kosmale@qt.io>
++(cherry picked from commit a76004f16fdc43e1b7af83bfdf3f1a613491b234)
++---
++
++diff --git a/src/corelib/thread/qyieldcpu.h b/src/corelib/thread/qyieldcpu.h
++index ab710ea..954c49a 100644
++--- a/src/corelib/thread/qyieldcpu.h
+++++ b/src/corelib/thread/qyieldcpu.h
++@@ -33,7 +33,9 @@
++     noexcept
++ #endif
++ {
++-#if __has_builtin(__yield)
+++#if __has_builtin(__builtin_arm_yield)
+++    __builtin_arm_yield();
+++#elif __has_builtin(__yield)
++     __yield();              // Generic
++ #elif defined(_YIELD_PROCESSOR) && defined(Q_CC_MSVC)
++     _YIELD_PROCESSOR();     // Generic; MSVC's <atomic>
++@@ -47,9 +49,6 @@
++     _mm_pause();
++ #elif defined(Q_PROCESSOR_X86)
++     __asm__("pause");           // hopefully asm() works in this compiler
++-
++-#elif __has_builtin(__builtin_arm_yield)
++-    __builtin_arm_yield();
++ #elif defined(Q_PROCESSOR_ARM) && Q_PROCESSOR_ARM >= 7 && defined(Q_CC_GNU)
++     __asm__("yield");           // this works everywhere
++ 
+diff --git a/recipes/qt/config.yml b/recipes/qt/config.yml
+index e7b188aaa..be22c1abf 100644
+--- a/recipes/qt/config.yml
++++ b/recipes/qt/config.yml
+@@ -3,6 +3,8 @@ versions:
+     folder: 6.x.x
+   "6.11.3":
+     folder: 6.x.x
++  "6.10.3":
++    folder: 6.x.x
+   "6.8.3":
+     folder: 6.x.x
+   "5.15.19":

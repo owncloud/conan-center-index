@@ -87,6 +87,11 @@ upstream tree and deletes it once upstream has absorbed it. Each one should be u
   ECM-chosen default install prefix), its `conandata.yml` entry and the test_package check.
   Upstream: [conan-io/conan-center-index#31478](https://github.com/conan-io/conan-center-index/pull/31478).
 
+- `qt-keep-6.10.3.patch` - `recipes/qt/`: keeps Qt 6.10.3 (`config.yml`, its `conandata.yml`
+  sources and patches, `patches/6.10.3-fix-macos-26.4.diff`), which upstream pruned when 6.11
+  came out. The desktop client pins it; drop the patch once the client moves to a newer Qt.
+  Not for upstream.
+
 ## Development Conventions
 
 - **Branching:** `master` only; there are no maintenance branches.

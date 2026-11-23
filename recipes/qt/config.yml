@@ -3,6 +3,8 @@ versions:
     folder: 6.x.x
   "6.11.3":
     folder: 6.x.x
+  "6.10.3":
+    folder: 6.x.x
   "6.8.3":
     folder: 6.x.x
   "5.15.19":
