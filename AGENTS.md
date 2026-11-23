@@ -194,9 +194,9 @@ of the path length limit.
 
 ### Git Workflow
 - **Rebase policy**: Always rebase; never create merge commits. Use `git pull --rebase` and `git rebase` before pushing.
-- **Signed commits**: All commits **must** be PGP/GPG signed (`git commit -S -s`). The one
-  exception is the sync workflow's own commit on `chore/sync-upstream`, which is unsigned
-  by design; the squash merge, the only merge method here, is signed by GitHub.
+- **Signed commits**: All commits **must** be PGP/GPG signed (`git commit -S -s`). The sync
+  workflow's own commit on `chore/sync-upstream` is signed by GitHub: the workflow re-creates
+  it through the API as the app. An unsigned commit on a head branch blocks even a squash merge.
 - **DCO sign-off**: Every commit needs a `Signed-off-by` line (`git commit -s`).
 - **Conventional Commits & Squash Merge**: Use the [Conventional Commits](https://www.conventionalcommits.org/) format where the repository enforces it. Many repos use squash merge, where the PR title becomes the commit message on the default branch — apply Conventional Commits format to PR titles as well. A reusable GitHub Actions workflow enforces this.
 

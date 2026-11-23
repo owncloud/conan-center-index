@@ -123,7 +123,10 @@ opens the PR can read them. Do not make them organisation or repository secrets:
 branch's workflow could then mint the app's token. The PR itself is opened with
 [`peter-evans/create-pull-request`](https://github.com/peter-evans/create-pull-request), as
 in `owncloud/reusable-workflows`. It pushes with git rather than signing through the API,
-whose rate limit a large sync would exceed; the squash merge onto `master` is signed.
+whose rate limit a large sync would exceed. The workflow then re-creates that commit through
+the API as the app, from the tree already pushed, which GitHub signs: `master` requires
+signed commits, and an unsigned commit on the head branch blocks even a squash merge. If that
+step fails, the head stays unsigned until the workflow is run again.
 
 The workflow runs [`scripts/sync-upstream.sh`](scripts/sync-upstream.sh), which also works
 locally from a clean checkout:
@@ -181,7 +184,7 @@ upstream arrive here on the next resync.
 
 Changes to the four ownCloud-only recipes or to the plumbing are made
 here by pull request against `master`. Commits must be signed and DCO signed-off
-(`git commit -S -s`); only the sync workflow's own commit is unsigned, see above. Commit
+(`git commit -S -s`); the sync workflow's own commit is signed by GitHub, see above. Commit
 subjects and PR titles follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 - [AGENTS.md](AGENTS.md) - guidance for AI coding agents working in this repository
