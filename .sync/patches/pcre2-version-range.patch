@@ -1,3 +1,28 @@
+diff --git a/docs/adding_packages/dependencies.md b/docs/adding_packages/dependencies.md
+index 998e6a22f..fc7f70617 100644
+--- a/docs/adding_packages/dependencies.md
++++ b/docs/adding_packages/dependencies.md
+@@ -74,6 +74,7 @@ version range only when a requirement for a newer version is needed.
+ * meson: `[>=1.2.3 <2]`
+ * pkgconf: `[>=2.2 <3]`
+ * xz_utils: `[>=5.4.5 <6]`
++* pcre2: `[>=10.43 <11]`
+ 
+ Conan maintainers may introduce this for other dependencies over time. Outside of the cases outlined above, version ranges are not allowed in ConanCenter recipes.
+ 
+diff --git a/recipes/gdal/post_3.5.0/conanfile.py b/recipes/gdal/post_3.5.0/conanfile.py
+index 2c244a761..deebcfb4a 100644
+--- a/recipes/gdal/post_3.5.0/conanfile.py
++++ b/recipes/gdal/post_3.5.0/conanfile.py
+@@ -262,7 +262,7 @@ class GdalConan(ConanFile):
+         if self.options.with_pcre:
+             self.requires("pcre/8.45")
+         if self.options.with_pcre2:
+-            self.requires("pcre2/10.42")
++            self.requires("pcre2/[>=10.43 <11]")
+         if self.options.with_pg:
+             self.requires("libpq/[>=14.9 <18]")
+         if self.options.with_png:
 diff --git a/recipes/glib/all/conanfile.py b/recipes/glib/all/conanfile.py
 index d1bcccafa..be8f8badf 100644
 --- a/recipes/glib/all/conanfile.py
@@ -11,6 +36,45 @@ index d1bcccafa..be8f8badf 100644
          if self.options.get_safe("with_elf"):
              self.requires("elfutils/0.190")
          if self.options.get_safe("with_mount"):
+diff --git a/recipes/jpcre2/all/conanfile.py b/recipes/jpcre2/all/conanfile.py
+index 537216e3b..2c41b9308 100644
+--- a/recipes/jpcre2/all/conanfile.py
++++ b/recipes/jpcre2/all/conanfile.py
+@@ -23,7 +23,7 @@ class Jpcre2Conan(ConanFile):
+         basic_layout(self, src_folder="src")
+ 
+     def requirements(self):
+-        self.requires("pcre2/10.42")
++        self.requires("pcre2/[>=10.43 <11]")
+ 
+     def package_id(self):
+         self.info.clear()
+diff --git a/recipes/libarchive/all/conanfile.py b/recipes/libarchive/all/conanfile.py
+index bff2979a7..2e2615c98 100644
+--- a/recipes/libarchive/all/conanfile.py
++++ b/recipes/libarchive/all/conanfile.py
+@@ -111,7 +111,7 @@ class LibarchiveConan(ConanFile):
+         if self.options.get_safe("with_mbedtls"):
+             self.requires("mbedtls/3.6.1")
+         if self.options.get_safe("with_pcre2"):
+-            self.requires("pcre2/10.43")
++            self.requires("pcre2/[>=10.43 <11]")
+ 
+     def build_requirements(self):
+         if Version(self.version) >= "3.7.9":
+diff --git a/recipes/libgit2/all/conanfile.py b/recipes/libgit2/all/conanfile.py
+index 602ff0191..5a6f1dcf7 100644
+--- a/recipes/libgit2/all/conanfile.py
++++ b/recipes/libgit2/all/conanfile.py
+@@ -90,7 +90,7 @@ class LibGit2Conan(ConanFile):
+         if self.options.with_regex == "pcre":
+             self.requires("pcre/8.45")
+         elif self.options.with_regex == "pcre2":
+-            self.requires("pcre2/10.42")
++            self.requires("pcre2/[>=10.43 <11]")
+ 
+     @property
+     def _need_openssl(self):
 diff --git a/recipes/libselinux/all/conanfile.py b/recipes/libselinux/all/conanfile.py
 index 19bf1f194..fbffa7ecd 100644
 --- a/recipes/libselinux/all/conanfile.py
@@ -24,6 +88,71 @@ index 19bf1f194..fbffa7ecd 100644
  
      def validate(self):
          if self.settings.os not in ["Linux", "FreeBSD"]:
+diff --git a/recipes/libyang/all/conanfile.py b/recipes/libyang/all/conanfile.py
+index cd2a43c2a..cf21bab3b 100644
+--- a/recipes/libyang/all/conanfile.py
++++ b/recipes/libyang/all/conanfile.py
+@@ -34,7 +34,7 @@ class LibYangConan(ConanFile):
+                 f"{self.ref} Conan recipe is not prepared to work on Windows. Contributions are welcome.")
+ 
+     def requirements(self):
+-        self.requires("pcre2/10.42", transitive_headers=True)
++        self.requires("pcre2/[>=10.43 <11]", transitive_headers=True)
+ 
+     def build_requirements(self):
+         self.tool_requires("cmake/[>=3.22]")
+diff --git a/recipes/ncbi-cxx-toolkit-public/all/conanfile.py b/recipes/ncbi-cxx-toolkit-public/all/conanfile.py
+index cdad5b738..20d77aee3 100755
+--- a/recipes/ncbi-cxx-toolkit-public/all/conanfile.py
++++ b/recipes/ncbi-cxx-toolkit-public/all/conanfile.py
+@@ -69,7 +69,7 @@ class NcbiCxxToolkit(ConanFile):
+         self.requires("bzip2/1.0.8")
+         self.requires("lzo/2.10")
+         self.requires("zstd/[>=1.5.2 <1.6]")
+-        self.requires("pcre2/[>=10.42 <11]")
++        self.requires("pcre2/[>=10.43 <11]")
+         self.requires("libuv/[>=1.45.0 <2]")
+         self.requires("libnghttp2/[>=1.66.0 <2]")
+         self.requires("libiconv/[>=1.17 <2]")
+diff --git a/recipes/ncurses/all/conanfile.py b/recipes/ncurses/all/conanfile.py
+index e256e6137..b36483a3d 100644
+--- a/recipes/ncurses/all/conanfile.py
++++ b/recipes/ncurses/all/conanfile.py
+@@ -78,7 +78,7 @@ class NCursesConan(ConanFile):
+ 
+     def requirements(self):
+         if self.options.with_pcre2:
+-            self.requires("pcre2/10.42")
++            self.requires("pcre2/[>=10.43 <11]")
+         if is_msvc(self):
+             self.requires("getopt-for-visual-studio/20200201")
+             self.requires("dirent/1.24")
+diff --git a/recipes/poco/all/conanfile.py b/recipes/poco/all/conanfile.py
+index aa5942f44..3255ce92d 100644
+--- a/recipes/poco/all/conanfile.py
++++ b/recipes/poco/all/conanfile.py
+@@ -121,7 +121,7 @@ class PocoConan(ConanFile):
+         self.tool_requires("cmake/[>=3.26]")
+ 
+     def requirements(self):
+-        self.requires("pcre2/[>=10.42 <11]")
++        self.requires("pcre2/[>=10.43 <11]")
+         self.requires("utf8proc/[>=2.8.0 <3]")
+         self.requires("zlib/[>=1.2.11 <2]")
+         if self.options.enable_xml:
+diff --git a/recipes/qt/5.x.x/conanfile.py b/recipes/qt/5.x.x/conanfile.py
+index 33a1630ff..adf160027 100644
+--- a/recipes/qt/5.x.x/conanfile.py
++++ b/recipes/qt/5.x.x/conanfile.py
+@@ -389,7 +389,7 @@ class QtConan(ConanFile):
+         if self.options.openssl:
+             self.requires("openssl/[>=1.1 <4]")
+         if self.options.with_pcre2:
+-            self.requires("pcre2/10.42")
++            self.requires("pcre2/[>=10.43 <11]")
+         if self.options.get_safe("with_vulkan"):
+             self.requires("vulkan-loader/1.3.268.0")
+             if is_apple_os(self):
 diff --git a/recipes/qt/6.x.x/conanfile.py b/recipes/qt/6.x.x/conanfile.py
 index f111b10c0..63c7d9a2a 100644
 --- a/recipes/qt/6.x.x/conanfile.py
@@ -37,3 +166,42 @@ index f111b10c0..63c7d9a2a 100644
          if self.options.get_safe("with_vulkan"):
              # Note: the versions of vulkan-loader and moltenvk
              #       must be exactly part of the same Vulkan SDK version
+diff --git a/recipes/restinio/all/conanfile.py b/recipes/restinio/all/conanfile.py
+index 576da558e..f1766b33f 100644
+--- a/recipes/restinio/all/conanfile.py
++++ b/recipes/restinio/all/conanfile.py
+@@ -58,7 +58,7 @@ class RestinioConan(ConanFile):
+         if self.options.with_pcre == 1:
+             self.requires("pcre/8.45")
+         elif self.options.with_pcre == 2:
+-            self.requires("pcre2/10.42")
++            self.requires("pcre2/[>=10.43 <11]")
+ 
+     def package_id(self):
+         self.info.clear()
+diff --git a/recipes/restinio/v0.7/conanfile.py b/recipes/restinio/v0.7/conanfile.py
+index 469b85dc3..5a2be48ff 100644
+--- a/recipes/restinio/v0.7/conanfile.py
++++ b/recipes/restinio/v0.7/conanfile.py
+@@ -64,7 +64,7 @@ class RestinioConan(ConanFile):
+         if self.options.with_pcre == 1:
+             self.requires("pcre/8.45")
+         elif self.options.with_pcre == 2:
+-            self.requires("pcre2/10.42")
++            self.requires("pcre2/[>=10.43 <11]")
+ 
+     def package_id(self):
+         self.info.clear()
+diff --git a/recipes/wxwidgets/all/conanfile.py b/recipes/wxwidgets/all/conanfile.py
+index c42f8e061..21ffce6f2 100644
+--- a/recipes/wxwidgets/all/conanfile.py
++++ b/recipes/wxwidgets/all/conanfile.py
+@@ -134,7 +134,7 @@ class wxWidgetsConan(ConanFile):
+         self.requires("libtiff/[>=4.6.0 <5]")
+         self.requires("zlib/[>=1.2.11 <2]")
+         self.requires("expat/[>=2.6.2 <3]")
+-        self.requires("pcre2/10.42")
++        self.requires("pcre2/[>=10.43 <11]")
+         self.requires("nanosvg/cci.20231025")
+         if Version(self.version) >= "3.3.0":
+             self.requires("libwebp/[>=1.6.0 <2]")

@@ -96,11 +96,13 @@ a patch that only keeps a version upstream pruned stays local:
   `libopengl-dev` alongside `libgl-dev`, so the GLVND `libOpenGL.so` that Qt links is there, as
   `libglvnd-devel` already gives on dnf.
   Upstream: [conan-io/conan-center-index#31539](https://github.com/conan-io/conan-center-index/pull/31539).
-- `pcre2-version-range.patch` - `recipes/{glib,libselinux}/all/conanfile.py` and
-  `recipes/qt/6.x.x/conanfile.py`: `pcre2/10.42` changed to `pcre2/[>=10.43 <11]`, so the
-  desktop client can lock a newer pcre2 in both the host and the build context.
-  Upstream: [conan-io/conan-center-index#31497](https://github.com/conan-io/conan-center-index/pull/31497)
-  (which changes every pcre2 consumer the same way).
+- `pcre2-version-range.patch` - every recipe that pinned pcre2 (glib, libselinux, qt 5 and 6,
+  wxwidgets, ...) requires `pcre2/[>=10.43 <11]`, plus the allowlist entry in
+  `docs/adding_packages/dependencies.md`: all of
+  [conan-io/conan-center-index#31497](https://github.com/conan-io/conan-center-index/pull/31497),
+  so the desktop client can lock a newer pcre2 in both the host and the build context. All
+  consumers at once, because a pin next to a range conflicts. pcre2/10.42 no longer resolves
+  next to these recipes.
 
 ## Development Conventions
 
