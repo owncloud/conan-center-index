@@ -1,0 +1,39 @@
+diff --git a/recipes/glib/all/conanfile.py b/recipes/glib/all/conanfile.py
+index d1bcccafa..be8f8badf 100644
+--- a/recipes/glib/all/conanfile.py
++++ b/recipes/glib/all/conanfile.py
+@@ -70,7 +70,7 @@ class GLibConan(ConanFile):
+     def requirements(self):
+         self.requires("zlib/[>=1.2.11 <2]")
+         self.requires("libffi/[>=3.4.4 <4]")
+-        self.requires("pcre2/10.42")
++        self.requires("pcre2/[>=10.43 <11]")
+         if self.options.get_safe("with_elf"):
+             self.requires("elfutils/0.190")
+         if self.options.get_safe("with_mount"):
+diff --git a/recipes/libselinux/all/conanfile.py b/recipes/libselinux/all/conanfile.py
+index 19bf1f194..fbffa7ecd 100644
+--- a/recipes/libselinux/all/conanfile.py
++++ b/recipes/libselinux/all/conanfile.py
+@@ -54,7 +54,7 @@ class LibSELinuxConan(ConanFile):
+         basic_layout(self, src_folder="src")
+ 
+     def requirements(self):
+-        self.requires("pcre2/10.42")
++        self.requires("pcre2/[>=10.43 <11]")
+ 
+     def validate(self):
+         if self.settings.os not in ["Linux", "FreeBSD"]:
+diff --git a/recipes/qt/6.x.x/conanfile.py b/recipes/qt/6.x.x/conanfile.py
+index f111b10c0..63c7d9a2a 100644
+--- a/recipes/qt/6.x.x/conanfile.py
++++ b/recipes/qt/6.x.x/conanfile.py
+@@ -350,7 +350,7 @@ class QtConan(ConanFile):
+         if self.options.openssl:
+             self.requires("openssl/[>=1.1 <4]")
+         if self.options.with_pcre2:
+-            self.requires("pcre2/10.42")
++            self.requires("pcre2/[>=10.43 <11]")
+         if self.options.get_safe("with_vulkan"):
+             # Note: the versions of vulkan-loader and moltenvk
+             #       must be exactly part of the same Vulkan SDK version
