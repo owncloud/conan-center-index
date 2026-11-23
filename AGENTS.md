@@ -69,7 +69,8 @@ except for the files the patches below touch.
 ### Local patches to upstream recipes
 
 `.sync/patches/` is the source of truth: the sync re-applies each patch to the fresh
-upstream tree and deletes it once upstream has absorbed it. Each one should be upstreamed:
+upstream tree and deletes it once upstream has absorbed it. Each fix should be upstreamed;
+a patch that only keeps a version upstream pruned stays local:
 
 - `dbus-meson-version-range.patch` - `recipes/dbus/all/conanfile.py` pins `meson/1.4.0`,
   which upstream pruned; changed to `meson/[>=1.4.0 <2]`. Upstream the fix to
@@ -86,6 +87,11 @@ upstream tree and deletes it once upstream has absorbed it. Each one should be u
   `patches/0002-relocatable-prefix.patch` (`ECM_PREFIX` from `PACKAGE_PREFIX_DIR`, no
   ECM-chosen default install prefix), its `conandata.yml` entry and the test_package check.
   Upstream: [conan-io/conan-center-index#31478](https://github.com/conan-io/conan-center-index/pull/31478).
+- `qt-keep-6.10.3.patch` - `recipes/qt/`: keeps Qt 6.10.3 (`config.yml`, its `conandata.yml`
+  sources and patches, `patches/6.10.3-fix-macos-26.4.diff`), which upstream pruned when 6.12.0
+  arrived (sync #86). The desktop client pins it; drop the patch once the client moves to a newer
+  Qt. It also needs `qtmodules6.10.3.conf`, which upstream still has; if a sync deletes it,
+  add it to this patch.
 
 ## Development Conventions
 
