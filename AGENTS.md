@@ -92,6 +92,10 @@ a patch that only keeps a version upstream pruned stays local:
   arrived (sync #86). The desktop client pins it; drop the patch once the client moves to a newer
   Qt. It also needs `qtmodules6.10.3.conf`, which upstream still has; if a sync deletes it,
   add it to this patch.
+- `opengl-apt-libopengl.patch` - `recipes/opengl/all/conanfile.py`: on apt, checks
+  `libopengl-dev` alongside `libgl-dev`, so the GLVND `libOpenGL.so` that Qt links is there, as
+  `libglvnd-devel` already gives on dnf.
+  Upstream: [conan-io/conan-center-index#31539](https://github.com/conan-io/conan-center-index/pull/31539).
 
 ## Development Conventions
 
