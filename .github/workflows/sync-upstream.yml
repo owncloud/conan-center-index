@@ -72,11 +72,15 @@ jobs:
           if [ -n "$lease" ]; then
             # A commit on the branch that the app did not both author and commit (an
             # amend or rebase keeps the author) holds the sync, whether or not a PR is
-            # open; the branch is deleted on merge. With pipefail (see defaults), a
-            # failed call fails the job rather than reading as "no one else".
+            # open; the branch is deleted on merge. The app's own commit is re-created
+            # through the API (see "Sign the sync commit"), which may record GitHub
+            # (web-flow) as its committer, so a verified commit by the app counts as its
+            # own too. With pipefail (see defaults), a failed call fails the job rather
+            # than reading as "no one else".
             others="$(gh api "repos/$GITHUB_REPOSITORY/compare/$master...$lease" \
               | jq -r --arg bot "${APP_SLUG}[bot]" \
-                '.commits[] | select(.author.login != $bot or .committer.login != $bot) | .sha')"
+                '.commits[] | select(.author.login != $bot or (.committer.login != $bot
+                  and (.committer.login != "web-flow" or .commit.verification.verified != true))) | .sha')"
             if [ -n "$others" ]; then
               echo "::warning::$BRANCH has commits by someone else; leaving it alone until it is merged or deleted"
               echo "result=held" >> "$GITHUB_OUTPUT"
@@ -176,10 +180,9 @@ jobs:
 
       # The organisation's way to open bot pull requests (see owncloud/reusable-workflows).
       # It commits the whole worktree as the app, puts that commit onto master and
-      # pushes it with git. Not sign-commits: that recreates the commit file by file
-      # through the API, and a sync touches more files than GitHub's secondary rate
-      # limit allows per hour. The branch has no signature rule, and the squash merge
-      # onto master is signed by GitHub.
+      # pushes it with git, unsigned. Not sign-commits: that recreates the commit file
+      # by file through the API, and a sync touches more files than GitHub's secondary
+      # rate limit allows per hour. The next step signs it.
       - name: Open or update the pull request
         id: cpr
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
@@ -199,6 +202,39 @@ jobs:
           delete-branch: true
           # Applies on create only; the next step sets it on every later run.
           draft: ${{ steps.sync.outputs.result != 'clean' }}
+
+      # master requires signed commits, and an unsigned commit on the head branch blocks
+      # even a squash merge. A commit the app creates through the API, without a custom
+      # author or committer, is signed by GitHub. The tree is already on GitHub after the
+      # push above, so this takes two writes however many files the sync touches.
+      - name: Sign the sync commit
+        if: steps.cpr.outputs.pull-request-head-sha != ''
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          HEAD_SHA: ${{ steps.cpr.outputs.pull-request-head-sha }}
+          BOT_EMAIL: ${{ env.APP_USER_ID }}+${{ env.APP_SLUG }}[bot]@users.noreply.github.com
+        run: |
+          commit="$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$HEAD_SHA")"
+          if [ "$(jq -r .verification.verified <<< "$commit")" = true ]; then
+            echo "$HEAD_SHA is already signed"
+            exit 0
+          fi
+          [ "$(jq '.parents | length' <<< "$commit")" = 1 ] \
+            || { echo "::error::$HEAD_SHA is not a single commit on master"; exit 1; }
+          # Same message (with its Upstream: and Signed-off-by: lines), tree and parent.
+          signed="$(jq '{message, tree: .tree.sha, parents: [.parents[0].sha]}' <<< "$commit" \
+            | gh api -X POST "repos/$GITHUB_REPOSITORY/git/commits" --input -)"
+          sha="$(jq -r .sha <<< "$signed")"
+          [ "$(jq -r .verification.verified <<< "$signed")" = true ] \
+            || { echo "::error::$sha is not verified: $(jq -r .verification.reason <<< "$signed")"; exit 1; }
+          [ "$(jq -r .author.email <<< "$signed")" = "$BOT_EMAIL" ] \
+            || { echo "::error::$sha is authored by $(jq -r .author.email <<< "$signed"), not $BOT_EMAIL"; exit 1; }
+          # Only replace the commit pushed above, never anything pushed since.
+          head="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq .object.sha)"
+          [ "$head" = "$HEAD_SHA" ] \
+            || { echo "::error::$BRANCH moved since the push ($HEAD_SHA -> $head); run again"; exit 1; }
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/$BRANCH" -f sha="$sha" -F force=true > /dev/null
+          echo "$BRANCH: $HEAD_SHA -> $sha (signed)"
 
       - name: Set the draft state
         # Also when the branch was already up to date (operation none), since the
