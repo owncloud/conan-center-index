@@ -100,7 +100,8 @@ a patch that only keeps a version upstream pruned stays local:
   `libmount/2.39.2` changed to `libmount/2.42.4`, all four libmount consumers at once, so the
   desktop client can lock libmount 2.42.4. All of
   [conan-io/conan-center-index#31516](https://github.com/conan-io/conan-center-index/pull/31516);
-  the sync drops the patch once it merges. libmount/2.39.2 no longer resolves next to these recipes.
+  the sync drops the patch once upstream has the same change. A libmount/2.39.2 pin elsewhere
+  conflicts with these four consumers.
 - `pcre2-version-range.patch` - every recipe that pinned pcre2 (glib, libselinux, qt 5 and 6,
   wxwidgets, ...) requires `pcre2/[>=10.43 <11]`, plus the allowlist entry in
   `docs/adding_packages/dependencies.md`: all of
