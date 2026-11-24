@@ -1,0 +1,414 @@
+diff --git a/recipes/qt/6.x.x/conandata.yml b/recipes/qt/6.x.x/conandata.yml
+index 087f3ac15..5c4951d39 100644
+--- a/recipes/qt/6.x.x/conandata.yml
++++ b/recipes/qt/6.x.x/conandata.yml
+@@ -1,26 +1,26 @@
+ sources:
+-  "6.12.0":
++  "6.12.1":
+     url:
+-      - "https://download.qt.io/official_releases/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-      - "https://download.qt.io/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-      - "https://mirrors.ukfast.co.uk/sites/qt.io/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-      - "https://mirrors.20i.com/pub/qt.io/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-      - "https://ftp.nluug.nl/languages/qt/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-      - "https://mirror.netcologne.de/qtproject/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-      - "https://qt-mirror.dannhauer.de/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-      - "https://ftp.fau.de/qtproject/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-      - "https://mirrors.dotsrc.org/qtproject/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-      - "https://ftp.icm.edu.pl/packages/qt/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-      - "https://ftp.acc.umu.se/mirror/qt.io/qtproject/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-      - "https://www.nic.funet.fi/pub/mirrors/download.qt-project.org/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-      - "https://qt.mirror.constant.com/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-      - "https://mirrors.sau.edu.cn/qt/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-      - "https://mirrors.cloud.tencent.com/qt/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-      - "https://mirror.bjtu.edu.cn/qt/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-      - "https://mirrors.sjtug.sjtu.edu.cn/qt/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-      - "https://ftp.jaist.ac.jp/pub/qtproject/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-      - "https://ftp.yz.yamagata-u.ac.jp/pub/qtproject/archive/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"
+-    sha256: "98ff4f44bac6ec3e1e62ee2a4316ae0e3d15badb015d753cc0268a20db52f165"
++      - "https://download.qt.io/official_releases/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++      - "https://download.qt.io/archive/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++      - "https://mirrors.ukfast.co.uk/sites/qt.io/archive/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++      - "https://mirrors.20i.com/pub/qt.io/archive/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++      - "https://ftp.nluug.nl/languages/qt/archive/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++      - "https://mirror.netcologne.de/qtproject/archive/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++      - "https://qt-mirror.dannhauer.de/archive/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++      - "https://ftp.fau.de/qtproject/archive/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++      - "https://mirrors.dotsrc.org/qtproject/archive/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++      - "https://ftp.icm.edu.pl/packages/qt/archive/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++      - "https://ftp.acc.umu.se/mirror/qt.io/qtproject/archive/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++      - "https://www.nic.funet.fi/pub/mirrors/download.qt-project.org/archive/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++      - "https://qt.mirror.constant.com/archive/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++      - "https://mirrors.sau.edu.cn/qt/archive/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++      - "https://mirrors.cloud.tencent.com/qt/archive/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++      - "https://mirror.bjtu.edu.cn/qt/archive/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++      - "https://mirrors.sjtug.sjtu.edu.cn/qt/archive/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++      - "https://ftp.jaist.ac.jp/pub/qtproject/archive/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++      - "https://ftp.yz.yamagata-u.ac.jp/pub/qtproject/archive/qt/6.12/6.12.1/single/qt-everywhere-src-6.12.1.tar.xz"
++    sha256: "cedb7a6dd4aec5d1c9d03df46028a523c9a274869528a6f3041667f47d14966f"
+   "6.11.3":
+     url:
+       - "https://download.qt.io/official_releases/qt/6.11/6.11.3/single/qt-everywhere-src-6.11.3.tar.xz"
+diff --git a/recipes/qt/6.x.x/qtmodules6.12.0.conf b/recipes/qt/6.x.x/qtmodules6.12.1.conf
+similarity index 88%
+rename from recipes/qt/6.x.x/qtmodules6.12.0.conf
+rename to recipes/qt/6.x.x/qtmodules6.12.1.conf
+index 7711a810c..fc8e9a3c4 100644
+--- a/recipes/qt/6.x.x/qtmodules6.12.0.conf
++++ b/recipes/qt/6.x.x/qtmodules6.12.1.conf
+@@ -1,46 +1,46 @@
+ [submodule "qtbase"]
+ 	path = qtbase
+ 	url = ../qtbase.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = essential
+ [submodule "qtsvg"]
+ 	depends = qtbase
+ 	path = qtsvg
+ 	url = ../qtsvg.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtdeclarative"]
+ 	depends = qtbase
+ 	recommends = qtimageformats qtshadertools qtsvg qtlanguageserver
+ 	path = qtdeclarative
+ 	url = ../qtdeclarative.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = essential
+ [submodule "qtactiveqt"]
+ 	depends = qtbase
+ 	path = qtactiveqt
+ 	url = ../qtactiveqt.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtmultimedia"]
+ 	depends = qtbase qtshadertools
+ 	recommends = qtdeclarative qtquick3d
+ 	path = qtmultimedia
+ 	url = ../qtmultimedia.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qttools"]
+ 	depends = qtbase
+ 	recommends = qtdeclarative qtactiveqt
+ 	path = qttools
+ 	url = ../qttools.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = essential
+ [submodule "qttranslations"]
+ 	depends = qttools
+ 	path = qttranslations
+ 	url = ../qttranslations.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = essential
+ 	priority = 30
+ [submodule "qtdoc"]
+@@ -48,7 +48,7 @@
+ 	recommends = qtmultimedia qtshadertools qttasktree
+ 	path = qtdoc
+ 	url = ../qtdoc.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = essential
+ 	priority = 40
+ [submodule "qtrepotools"]
+@@ -61,7 +61,7 @@
+ 	depends = qtbase
+ 	path = qtqa
+ 	url = ../qtqa.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = essential
+ 	priority = 50
+ [submodule "qtlocation"]
+@@ -69,234 +69,234 @@
+ 	recommends = qtdeclarative
+ 	path = qtlocation
+ 	url = ../qtlocation.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = preview
+ [submodule "qtpositioning"]
+ 	depends = qtbase
+ 	recommends = qtdeclarative qtserialport
+ 	path = qtpositioning
+ 	url = ../qtpositioning.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtsensors"]
+ 	depends = qtbase
+ 	recommends = qtdeclarative
+ 	path = qtsensors
+ 	url = ../qtsensors.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtconnectivity"]
+ 	depends = qtbase
+ 	recommends = qtdeclarative
+ 	path = qtconnectivity
+ 	url = ../qtconnectivity.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtwayland"]
+ 	depends = qtbase
+ 	recommends = qtdeclarative
+ 	path = qtwayland
+ 	url = ../qtwayland.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qt3d"]
+ 	depends = qtbase
+ 	recommends = qtdeclarative qtshadertools qtmultimedia
+ 	path = qt3d
+ 	url = ../qt3d.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = deprecated
+ [submodule "qtimageformats"]
+ 	depends = qtbase
+ 	path = qtimageformats
+ 	url = ../qtimageformats.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtserialbus"]
+ 	depends = qtbase
+ 	recommends = qtserialport
+ 	path = qtserialbus
+ 	url = ../qtserialbus.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtserialport"]
+ 	depends = qtbase
+ 	path = qtserialport
+ 	url = ../qtserialport.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtwebsockets"]
+ 	depends = qtbase
+ 	recommends = qtdeclarative
+ 	path = qtwebsockets
+ 	url = ../qtwebsockets.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtwebchannel"]
+ 	depends = qtbase
+ 	recommends = qtdeclarative qtwebsockets
+ 	path = qtwebchannel
+ 	url = ../qtwebchannel.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtwebview"]
+ 	depends = qtdeclarative
+ 	path = qtwebview
+ 	url = ../qtwebview.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtcharts"]
+ 	depends = qtbase
+ 	recommends = qtdeclarative qtmultimedia
+ 	path = qtcharts
+ 	url = ../qtcharts.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = deprecated
+ [submodule "qtdatavis3d"]
+ 	depends = qtbase
+ 	recommends = qtdeclarative qtmultimedia
+ 	path = qtdatavis3d
+ 	url = ../qtdatavis3d.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = deprecated
+ [submodule "qtvirtualkeyboard"]
+ 	depends = qtbase qtdeclarative qtsvg
+ 	recommends = qtmultimedia
+ 	path = qtvirtualkeyboard
+ 	url = ../qtvirtualkeyboard.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtscxml"]
+ 	depends = qtbase qtdeclarative
+ 	path = qtscxml
+ 	url = ../qtscxml.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtspeech"]
+ 	depends = qtbase qtmultimedia
+ 	recommends = qtdeclarative
+ 	path = qtspeech
+ 	url = ../qtspeech.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtnetworkauth"]
+ 	depends = qtbase
+ 	path = qtnetworkauth
+ 	url = ../qtnetworkauth.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtremoteobjects"]
+ 	depends = qtbase
+ 	recommends = qtdeclarative
+ 	path = qtremoteobjects
+ 	url = ../qtremoteobjects.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtlottie"]
+ 	depends = qtbase qtdeclarative qtquicktimeline
+ 	path = qtlottie
+ 	url = ../qtlottie.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtquicktimeline"]
+ 	depends = qtbase qtdeclarative
+ 	path = qtquicktimeline
+ 	url = ../qtquicktimeline
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtquick3d"]
+ 	depends = qtbase qtdeclarative qtshadertools
+ 	recommends = qtquicktimeline
+ 	path = qtquick3d
+ 	url = ../qtquick3d.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtshadertools"]
+ 	depends = qtbase
+ 	path = qtshadertools
+ 	url = ../qtshadertools.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qt5compat"]
+ 	depends = qtbase qtdeclarative
+ 	path = qt5compat
+ 	url = ../qt5compat.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = deprecated
+ [submodule "qtcoap"]
+ 	depends = qtbase
+ 	path = qtcoap
+ 	url = ../qtcoap.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtmqtt"]
+ 	depends = qtbase qtdeclarative
+ 	recommends = qtwebsockets
+ 	path = qtmqtt
+ 	url = ../qtmqtt.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtopcua"]
+ 	depends = qtbase qtdeclarative
+ 	path = qtopcua
+ 	url = ../qtopcua.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtlanguageserver"]
+ 	depends = qtbase
+ 	path = qtlanguageserver
+ 	url = ../qtlanguageserver.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = preview
+ [submodule "qthttpserver"]
+ 	depends = qtbase
+ 	recommends = qtwebsockets
+ 	path = qthttpserver
+ 	url = ../qthttpserver.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtquick3dphysics"]
+ 	depends = qtbase qtdeclarative qtquick3d qtshadertools
+ 	path = qtquick3dphysics
+ 	url = ../qtquick3dphysics.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtgrpc"]
+ 	depends = qtbase
+ 	recommends = qtdeclarative
+ 	path = qtgrpc
+ 	url = ../qtgrpc.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtquickeffectmaker"]
+ 	depends = qtbase qtdeclarative qtshadertools
+ 	recommends = qtquick3d
+ 	path = qtquickeffectmaker
+ 	url = ../qtquickeffectmaker.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qtgraphs"]
+ 	depends = qtbase qtdeclarative qtquick3d
+ 	path = qtgraphs
+ 	url = ../qtgraphs.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+ [submodule "qttasktree"]
+ 	depends = qtbase
+ 	path = qttasktree
+ 	url = ../qttasktree.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = preview
+ [submodule "qtopenapi"]
+ 	depends = qtbase
+ 	recommends = qtdeclarative
+ 	path = qtopenapi
+ 	url = ../qtopenapi.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = preview
+ [submodule "qtcanvaspainter"]
+ 	depends = qtbase qtdeclarative qtshadertools
+ 	path = qtcanvaspainter
+ 	url = ../qtcanvaspainter.git
+-	branch = 6.12.0
++	branch = 6.12.1
+ 	status = addon
+\ No newline at end of file
+diff --git a/recipes/qt/config.yml b/recipes/qt/config.yml
+index ffe6a86fb..3830187a1 100644
+--- a/recipes/qt/config.yml
++++ b/recipes/qt/config.yml
+@@ -1,5 +1,5 @@
+ versions:
+-  "6.12.0":
++  "6.12.1":
+     folder: 6.x.x
+   "6.11.3":
+     folder: 6.x.x
