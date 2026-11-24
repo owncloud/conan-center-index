@@ -1,0 +1,52 @@
+diff --git a/recipes/eudev/all/conanfile.py b/recipes/eudev/all/conanfile.py
+index c20481dbc..5f348a562 100644
+--- a/recipes/eudev/all/conanfile.py
++++ b/recipes/eudev/all/conanfile.py
+@@ -62,7 +62,7 @@ class EudevConan(ConanFile):
+         if self.options.with_kmod:
+             self.requires("kmod/30")
+         if self.options.with_libblkid:
+-            self.requires("libmount/2.39.2")
++            self.requires("libmount/2.42.4")
+         if self.options.with_selinux:
+             self.requires("libselinux/3.6")
+ 
+diff --git a/recipes/glib/all/conanfile.py b/recipes/glib/all/conanfile.py
+index be8f8badf..1a1a7eaf2 100644
+--- a/recipes/glib/all/conanfile.py
++++ b/recipes/glib/all/conanfile.py
+@@ -74,7 +74,7 @@ class GLibConan(ConanFile):
+         if self.options.get_safe("with_elf"):
+             self.requires("elfutils/0.190")
+         if self.options.get_safe("with_mount"):
+-            self.requires("libmount/2.39.2")
++            self.requires("libmount/2.42.4")
+         if self.options.get_safe("with_selinux"):
+             self.requires("libselinux/3.6")
+         if self.settings.os != "Linux":
+diff --git a/recipes/libsystemd/all/conanfile.py b/recipes/libsystemd/all/conanfile.py
+index 62654dcdd..94993a90e 100644
+--- a/recipes/libsystemd/all/conanfile.py
++++ b/recipes/libsystemd/all/conanfile.py
+@@ -55,7 +55,7 @@ class LibsystemdConan(ConanFile):
+ 
+     def requirements(self):
+         self.requires("libcap/[>=2.69 <3]")
+-        self.requires("libmount/2.39.2")
++        self.requires("libmount/2.42.4")
+         self.requires("libxcrypt/4.4.36")
+         if self.options.with_selinux:
+             self.requires("libselinux/3.6")
+diff --git a/recipes/libwebsockets/all/conanfile.py b/recipes/libwebsockets/all/conanfile.py
+index eca799730..82127745b 100644
+--- a/recipes/libwebsockets/all/conanfile.py
++++ b/recipes/libwebsockets/all/conanfile.py
+@@ -220,7 +220,7 @@ class LibwebsocketsConan(ConanFile):
+             self.requires("miniz/3.0.2")
+ 
+         if self.options.with_libmount:
+-            self.requires("libmount/2.39.2")
++            self.requires("libmount/2.42.4")
+ 
+         if self.options.with_sqlite3:
+             self.requires("sqlite3/3.44.2")

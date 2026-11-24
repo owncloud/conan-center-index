@@ -96,6 +96,10 @@ a patch that only keeps a version upstream pruned stays local:
   `libopengl-dev` alongside `libgl-dev`, so the GLVND `libOpenGL.so` that Qt links is there, as
   `libglvnd-devel` already gives on dnf.
   Upstream: [conan-io/conan-center-index#31539](https://github.com/conan-io/conan-center-index/pull/31539).
+- `libmount-version-2.42.4.patch` - `recipes/{eudev,glib,libsystemd,libwebsockets}/all/conanfile.py`:
+  `libmount/2.39.2` changed to `libmount/2.42.4`, all four libmount consumers at once, so the
+  desktop client can lock libmount 2.42.4. All of
+  [conan-io/conan-center-index#31516](https://github.com/conan-io/conan-center-index/pull/31516).
 - `pcre2-version-range.patch` - every recipe that pinned pcre2 (glib, libselinux, qt 5 and 6,
   wxwidgets, ...) requires `pcre2/[>=10.43 <11]`, plus the allowlist entry in
   `docs/adding_packages/dependencies.md`: all of
