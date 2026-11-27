@@ -85,6 +85,8 @@ patches:
       "base_path": "qtwebengine"
     - "patch_file": "patches/6.8.x-fix-macos-26.4.diff"
       "base_path": "qtbase"
+    - "patch_file": "patches/6.8.x-sequence-sort-copy.diff"
+      "base_path": "qtdeclarative"
   "6.10.3":
     - "patch_file": "patches/6.10.3-fix-macos-26.4.diff"
       "base_path": "qtbase"
