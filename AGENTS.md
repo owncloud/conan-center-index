@@ -99,6 +99,15 @@ a patch that only keeps a version upstream pruned stays local:
   the sync drops the patch once upstream has the same change. Upstream's `patches: "6.12.0"`
   entry (`6.12.0-entrypoint-sync-headers.patch`, an iOS fix) stays under 6.12.0 on purpose: it
   does not apply to the 6.12.1 sources, so 6.12.1 builds without it.
+- `qt-xcode27-6.8-sequence-sort-copy.patch` - `recipes/qt/6.x.x/`: adds
+  `patches/6.8.x-sequence-sort-copy.diff` and its `conandata.yml` entry for 6.8.5, so
+  qtdeclarative's `sortSequence()` sorts a `QVariantList` copy and writes it back instead of
+  running `std::sort` on `QSequentialIterable`'s iterators. Xcode 27's libc++ subscripts the
+  iterators `std::sort` gets, and those have no `operator[]` (one can't be added safely: their
+  `QVariantRef` points at the iterator it came from). Qt 6.9 and newer no longer sort through
+  these iterators. The desktop client's 7.2 and 6 branches build Qt 6.8.5 on macOS with Xcode
+  27. Named to sort after the other qt patches, whose results its context includes. Upstream it
+  to `conan-io/conan-center-index`.
 - `opengl-apt-libopengl.patch` - `recipes/opengl/all/conanfile.py`: on apt, checks
   `libopengl-dev` alongside `libgl-dev`, so the GLVND `libOpenGL.so` that Qt links is there, as
   `libglvnd-devel` already gives on dnf.

@@ -1,0 +1,43 @@
+Sort a copy of the sequence in SequencePrototype.sort
+
+libc++ in Xcode 27 subscripts the iterators passed to std::sort
+(std::__sift_down), and QSequentialIterable's random access iterator has
+no subscript operator, so sortSequence() no longer compiles:
+
+    error: type 'QTaggedIterator<QTaggedIterator<QSequentialIterator, void>,
+    std::random_access_iterator_tag>' does not provide a subscript operator
+
+Copy the elements into a QVariantList, sort that and write them back,
+unless the compare function threw. Qt 6.9 replaced sortSequence() with
+the generic Array sort (qtdeclarative 6537b2b23b).
+
+diff --git a/src/qml/jsruntime/qv4sequenceobject.cpp b/src/qml/jsruntime/qv4sequenceobject.cpp
+index 638dd50..fbe13f4 100644
+--- a/src/qml/jsruntime/qv4sequenceobject.cpp
++++ b/src/qml/jsruntime/qv4sequenceobject.cpp
+@@ -102,9 +102,22 @@ void sortSequence(Sequence *sequence, const Compare &compare)
+ 
+     QSequentialIterable iterable(p->metaSequence(), p->listType(), p->storagePointer());
+     if (iterable.canRandomAccessIterate()) {
+-        std::sort(QSequentialIterable::RandomAccessIterator(iterable.mutableBegin()),
+-                  QSequentialIterable::RandomAccessIterator(iterable.mutableEnd()),
+-                  compare);
++        // Sort a copy: libc++ (Xcode 27) subscripts the iterators std::sort gets, and
++        // QSequentialIterable's iterators have no subscript operator.
++        QVariantList values;
++        values.reserve(iterable.size());
++        for (auto it = iterable.constBegin(), end = iterable.constEnd(); it != end; ++it)
++            values.append(*it);
++        std::sort(values.begin(), values.end(), compare);
++        // A throwing compare function leaves the sequence as it was.
++        if (p->internalClass->engine->hasException)
++            return;
++        // The compare function may have changed the sequence; write no more than it holds.
++        qsizetype i = 0;
++        for (auto it = iterable.mutableBegin(), end = iterable.mutableEnd();
++             it != end && i < values.size(); ++it, ++i) {
++            *it = values.at(i);
++        }
+     } else {
+         qWarning() << "Container has no suitable iterator for sorting";
+     }
