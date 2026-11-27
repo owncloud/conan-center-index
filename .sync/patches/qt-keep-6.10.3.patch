@@ -1,11 +1,11 @@
 diff --git a/recipes/qt/6.x.x/conandata.yml b/recipes/qt/6.x.x/conandata.yml
-index 12d031be1..087f3ac15 100644
+index bb7127ec5..06dd2fb04 100644
 --- a/recipes/qt/6.x.x/conandata.yml
 +++ b/recipes/qt/6.x.x/conandata.yml
-@@ -65,6 +65,28 @@ sources:
-       - "https://ftp.jaist.ac.jp/pub/qtproject/archive/qt/6.8/6.8.3/single/qt-everywhere-src-6.8.3.tar.xz"
-       - "https://ftp.yz.yamagata-u.ac.jp/pub/qtproject/archive/qt/6.8/6.8.3/single/qt-everywhere-src-6.8.3.tar.xz"
-     sha256: "cdd3a69967208276bb01af7ace7dba0ba53e679f886a4cbe624225c60fb73f2c"
+@@ -54,6 +54,28 @@ sources:
+       - "https://ftp.jaist.ac.jp/pub/qtproject/archive/qt/6.8/6.8.5/single/qt-everywhere-opensource-src-6.8.5.tar.xz"
+       - "https://mirror.aarnet.edu.au/pub/qtproject/archive/qt/6.8/6.8.5/single/qt-everywhere-opensource-src-6.8.5.tar.xz"
+     sha256: "c0537548bb3871cbb3cac85fb55813430d45ac4d5d4daa64bdf41f3c2ae65ff9"
 +  "6.10.3":
 +    url:
 +      - "https://download.qt.io/official_releases/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
@@ -29,11 +29,11 @@ index 12d031be1..087f3ac15 100644
 +      - "https://ftp.yz.yamagata-u.ac.jp/pub/qtproject/archive/qt/6.10/6.10.3/single/qt-everywhere-src-6.10.3.tar.xz"
 +    sha256: "cbc81e726b0ff3c0cdb0219bf74545e91cec013c4a8503c20f93f83d73dff5d2"
  patches:
-   "6.8.3":
-     - "patch_file": "patches/remove-linkage-to-agl-framework.patch"
-@@ -77,3 +99,6 @@ patches:
-       "base_path": "qtwebengine/src/3rdparty"
-     - "patch_file": "patches/6.8.3-fix-macos-26.4.diff"
+   "6.12.0":
+     - "patch_file": "patches/6.12.0-entrypoint-sync-headers.patch"
+@@ -63,3 +85,6 @@ patches:
+       "base_path": "qtwebengine"
+     - "patch_file": "patches/6.8.x-fix-macos-26.4.diff"
        "base_path": "qtbase"
 +  "6.10.3":
 +    - "patch_file": "patches/6.10.3-fix-macos-26.4.diff"
@@ -92,7 +92,7 @@ index 000000000..102a214af
 +     __asm__("yield");           // this works everywhere
 + 
 diff --git a/recipes/qt/config.yml b/recipes/qt/config.yml
-index e7b188aaa..ffe6a86fb 100644
+index 5afc5a2ab..08145103b 100644
 --- a/recipes/qt/config.yml
 +++ b/recipes/qt/config.yml
 @@ -7,3 +7,5 @@ versions:

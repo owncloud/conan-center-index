@@ -96,17 +96,19 @@ a patch that only keeps a version upstream pruned stays local:
   `conandata.yml`, `qtmodules6.12.1.conf`), so the desktop client can move to the maintained
   Qt before ConanCenter has it. All of
   [conan-io/conan-center-index#31547](https://github.com/conan-io/conan-center-index/pull/31547);
-  the sync drops the patch once upstream has the same change.
+  the sync drops the patch once upstream has the same change. Upstream's `patches: "6.12.0"`
+  entry (`6.12.0-entrypoint-sync-headers.patch`, an iOS fix) stays under 6.12.0 on purpose: it
+  does not apply to the 6.12.1 sources, so 6.12.1 builds without it.
 - `opengl-apt-libopengl.patch` - `recipes/opengl/all/conanfile.py`: on apt, checks
   `libopengl-dev` alongside `libgl-dev`, so the GLVND `libOpenGL.so` that Qt links is there, as
   `libglvnd-devel` already gives on dnf.
   Upstream: [conan-io/conan-center-index#31539](https://github.com/conan-io/conan-center-index/pull/31539).
-- `libmount-version-2.42.4.patch` - `recipes/{eudev,glib,libsystemd,libwebsockets}/all/conanfile.py`:
-  `libmount/2.39.2` changed to `libmount/2.42.4`, all four libmount consumers at once, so the
-  desktop client can lock libmount 2.42.4. All of
+- `libmount-version-range.patch` - `recipes/{eudev,libsystemd}/all/conanfile.py`:
+  `libmount/2.39.2` changed to `libmount/[>=2.39.2 <3]`, so the desktop client can lock libmount
+  2.42.4; upstream's glib and libwebsockets already require it as a range. All of
   [conan-io/conan-center-index#31516](https://github.com/conan-io/conan-center-index/pull/31516);
   the sync drops the patch once upstream has the same change. A libmount/2.39.2 pin elsewhere
-  conflicts with these four consumers.
+  conflicts with the client's lock.
 - `pcre2-version-range.patch` - every recipe that pinned pcre2 (glib, libselinux, qt 5 and 6,
   wxwidgets, ...) requires `pcre2/[>=10.43 <11]`, plus the allowlist entry in
   `docs/adding_packages/dependencies.md`: all of
